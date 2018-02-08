@@ -27,7 +27,7 @@ SocketIoBridgeClient.prototype.make = function({
   new Promise((resolve, reject) => {
     
     this.mastersocket.on('logged_in', (id) => {
-      if (id != uid) return; // not for us
+      if (id != uid) return; // called as many times as make() was called, but with different ids
       log.debug('logged in OK');
       resolve();
     });
@@ -45,17 +45,17 @@ SocketIoBridgeClient.prototype.make = function({
         rejectUnauthorized: false // permit self-signed cert
       });
 
-      bridgesocket.on('connected', function () {
+      bridgesocket.once('connected', function () {
         // can be repeated!!!
         log.debug('connected');
         bridgesocket.emit('start', uid);
       });
 
-      bridgesocket.on('disconnect', function () {
+      bridgesocket.once('disconnect', function () {
         log.debug('disconnect');
       });
 
-      bridgesocket.on('peer_connected', function () {
+      bridgesocket.once('peer_connected', function () {
         log.debug("peer_connected");
 
         log.debug("trying to get echo...");

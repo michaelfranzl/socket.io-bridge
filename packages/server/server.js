@@ -7,7 +7,6 @@ const MAX_NUM_BRIDGES = 100;
 function SocketIoBridgeServer({
   namespace,
   log = console,
-  io,
 } = {}) {
   
   if (!this.console) {
@@ -93,7 +92,6 @@ function SocketIoBridgeServer({
         
         if (clients[myid]) {
           log.warn(`Already logged in with UID ${myid}. Is this a reconnect?`);
-          // TODO: potentially tear down previous bridges
         }
         
         let myinfo = clients[myid] = {
@@ -147,6 +145,8 @@ function SocketIoBridgeServer({
         
       }); // on login
       
+      
+      
       socket.on('request_bridge', (myid, otherid) => {
         
         let myinfo = clients[myid];
@@ -182,9 +182,9 @@ function SocketIoBridgeServer({
           socket.emit('connect_to_bridge', myid, bridgenum);
           otherclientinfo.socket.emit('connect_to_bridge', otherid, bridgenum);
         }
-      });
+      }); // on request_bridge
       
-
+      
       
     }); // on connection
     
@@ -214,13 +214,9 @@ function SocketIoBridgeServer({
       
     } else {
       
-      
-      //let ns = `/bridges_${bridgenum}`;
       let ns = `${namespace.name}/${bridgenum}`;
-      
-      
-      
-      bridge = bridges_by_num[bridgenum] = io.of(ns);
+
+      bridge = bridges_by_num[bridgenum] = namespace.server.of(ns);
       
       log.info(`Creating bridge ${ns}`);
     }
