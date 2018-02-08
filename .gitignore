@@ -1,0 +1,5 @@
+*~
+*.log
+*swp
+node_modules
+jspm_packages
