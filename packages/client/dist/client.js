@@ -26,9 +26,14 @@ SocketIoBridgeClient.prototype.make = function () {
       peer_uid = _ref2.peer_uid,
       onsocket = _ref2.onsocket,
       _ref2$log = _ref2.log,
-      log = _ref2$log === undefined ? console : _ref2$log;
+      log = _ref2$log === undefined ? {
+    info: console.info,
+    warn: console.warn,
+    debug: console.log,
+    error: console.error
+  } : _ref2$log;
 
-  log.debug('logging in with uid ' + uid + ' to ' + this.uri);
+  log.info('make()');
 
   this.mastersocket.emit('login', uid);
 
@@ -36,7 +41,7 @@ SocketIoBridgeClient.prototype.make = function () {
 
     _this.mastersocket.on('logged_in', function (id) {
       if (id != uid) return; // called as many times as make() was called, but with different ids
-      log.debug('logged in OK');
+      log.debug('CLIENT logged_in', id);
       resolve();
     });
   }).then(function () {
@@ -45,7 +50,7 @@ SocketIoBridgeClient.prototype.make = function () {
 
       var uri = _this.mastersocket.io.uri + '/' + bridgenum;
 
-      log.info('connect_to_bridge', id, uri);
+      log.info('CLIENT connect_to_bridge', id, uri);
 
       var bridgesocket = _this.io(uri, {
         rejectUnauthorized: false // permit self-signed cert
@@ -53,22 +58,22 @@ SocketIoBridgeClient.prototype.make = function () {
 
       bridgesocket.once('connected', function () {
         // can be repeated!!!
-        log.debug('connected');
+        log.debug('CLIENT connected', uid);
         bridgesocket.emit('start', uid);
       });
 
       bridgesocket.once('disconnect', function () {
-        log.debug('disconnect');
+        log.debug('CLIENT disconnect', uid);
       });
 
       bridgesocket.once('peer_connected', function () {
-        log.debug("peer_connected");
+        log.debug("peer_connected", uid);
 
-        log.debug("trying to get echo...");
+        log.debug("CLIENT trying to get echo...");
         var echotxt = 'hello';
         bridgesocket.emit('echo', echotxt, function (echoed) {
           if (echotxt == echoed) {
-            log.debug('echo works. bridge successfully established');
+            log.debug('CLIENT echo works. bridge successfully established', uid);
             if (onsocket) onsocket(bridgesocket);
           }
         });
@@ -81,7 +86,7 @@ SocketIoBridgeClient.prototype.make = function () {
 
 
     if (peer_uid) {
-      log.info('requesting bridge', uid, peer_uid);
+      log.info('CLIENT requesting bridge', uid, peer_uid);
       _this.mastersocket.emit('request_bridge', uid, peer_uid);
     }
   });

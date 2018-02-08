@@ -4,13 +4,16 @@
   "description": "",
   "main": "client.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node ./tests/test.js"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@socket.io-bridge/server": "^0.1.0",
     "gulp": "^3.9.1",
-    "jspm": "^0.17.0-beta.41"
+    "jspm": "^0.17.0-beta.41",
+    "socket.io-client": "^2.0.4",
+    "socket.io": "^2.0.4"
   },
   "jspm": {
     "name": "@socket.io-bridge/client",

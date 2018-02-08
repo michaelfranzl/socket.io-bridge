@@ -6,7 +6,12 @@ const MAX_NUM_BRIDGES = 100;
 
 function SocketIoBridgeServer({
   namespace,
-  log = console,
+  log = {
+    info: console.info,
+    warn: console.warn,
+    debug: console.log,
+    error: console.error
+  }
 } = {}) {
   
   if (!this.console) {
@@ -83,15 +88,15 @@ function SocketIoBridgeServer({
     
     namespace.on('connection', socket => {
       
-      log.info('Connection to /bridge');
+      log.info('SERVER Connection to /bridge');
       
       socket.emit('connected');
       
       socket.on('login', (myid) => {
-        log.info('Login to bridge with UID', myid);
+        log.info('SERVER Login to bridge with UID', myid);
         
         if (clients[myid]) {
-          log.warn(`Already logged in with UID ${myid}. Is this a reconnect?`);
+          log.warn(`SERVER Already logged in with UID ${myid}. Is this a reconnect?`);
         }
         
         let myinfo = clients[myid] = {
@@ -107,13 +112,13 @@ function SocketIoBridgeServer({
           waiting_clientids = Object.keys(clients_waiting[myid]);
         }
         
-        log.info('Waiting waiting_clientids', waiting_clientids);
+        //log.info('Waiting waiting_clientids', waiting_clientids);
         
         for (let wid of waiting_clientids) {
           let waiting_client_info = clients_waiting[myid][wid];
           
           if (!waiting_client_info) {
-            log.error('NO OTHER waiting_client_info ERROR');
+            log.error('SERVER  NO OTHER waiting_client_info ERROR');
             return;
           }
           
@@ -124,15 +129,12 @@ function SocketIoBridgeServer({
           // client needs a bit of time between logged_in and connect_to_bridge
           setTimeout(() => {
             socket.emit('connect_to_bridge', myid, bridgenum);
-            
-            waiting_client_info.socket.emit('connect_to_bridge', wid, bridgenum);
-            
-          }, 500);
+          }, 100);
+          
+          waiting_client_info.socket.emit('connect_to_bridge', wid, bridgenum);
           
           
-          
-          
-          log.info('Late connect_to_bridge'.yellow, bridgenum, wid);
+          log.info('SERVER Late connect_to_bridge', bridgenum, wid);
           
           delete clients_waiting[myid][wid];
         } // for
@@ -153,7 +155,7 @@ function SocketIoBridgeServer({
         let bridgenum = num_bridges++;
         let otherclientinfo = clients[otherid];
         
-        log.info('request_bridge', myid, otherid);
+        log.info('SERVER request_bridge', myid, otherid);
         
         if (!otherclientinfo) {
           log.warn(`request_bridge: Other client ${otherid} not yet connected`.yellow, myid, otherid, bridgenum);
@@ -200,7 +202,7 @@ function SocketIoBridgeServer({
    * Security considerations: This is called internally, and since one needs collaboration of another client, it cannot be called as fast as possible.
   */
   function makeBridge(bridgenum) {
-    log.info(`[BRIDGE ${bridgenum}]`.cyan, 'makeBridge()');
+    log.info('SERVER makeBridge()', bridgenum);
     
     let bridge;
     
@@ -208,7 +210,7 @@ function SocketIoBridgeServer({
     
     if (bridges_by_num[bridgenum]) {
       // fault of caller. bridgenum must be unique
-      let msg = `${bridgenum} already existing`;
+      let msg = `SERVER  ${bridgenum} already existing`;
       log.error(msg);
       return new Error(msg);
       
@@ -218,7 +220,7 @@ function SocketIoBridgeServer({
 
       bridge = bridges_by_num[bridgenum] = namespace.server.of(ns);
       
-      log.info(`Creating bridge ${ns}`);
+      log.info(`SERVER  Creating bridge ${ns}`);
     }
     
     bridge.on('error', (err) => {
@@ -229,7 +231,7 @@ function SocketIoBridgeServer({
       let socks_by_label;
       // can be repeated, that's why we have to use labels
 
-      log.info(`Connection to bridge ${bridgenum}`);
+      log.info(`SERVER Connection to bridge ${bridgenum}`);
       
       if (!socks_by_bridgenum[bridgenum]) {
         // first connect
@@ -252,7 +254,7 @@ function SocketIoBridgeServer({
         return;
       }
       
-      log.info(`Now ${num_active_bridges} bridges active.`);
+      log.info(`SERVER Now ${num_active_bridges} bridges active.`);
       
       mysock.emit('connected');
 
@@ -262,7 +264,7 @@ function SocketIoBridgeServer({
         
         addWilcardHandler(mysock);
         
-        log.info(`Starting bridge`);
+        log.info(`SERVER bridge start by`, mylabel);
         
         socks_by_label[mylabel] = mysock;
 
@@ -275,18 +277,18 @@ function SocketIoBridgeServer({
         mysock.on('*', (...args) => {
           let [otherlabel, othersock] = getOtherKeyVal(socks_by_label, mylabel);
           if (othersock) {
-            log.debug(`${mylabel}--->${otherlabel}`, ...args);
+            log.debug(`${mylabel}--->${otherlabel}`, args[0]);
           
             othersock.emit(...args);
           } else {
-            log.warn(`Cannot bridge, other socket not yet connected`);
+            log.warn(`SERVER  Cannot bridge, other socket not yet connected`);
           }
         });
       }); // bridge once start
       
       
       mysock.on('disconnect', () => {
-        log.warn(`Bridge socket with label ${mysock.__mylabel} disconnected.`);
+        log.warn(`SERVER  Bridge socket with label ${mysock.__mylabel} disconnected.`);
         
         // Close all other sockets (just one but we make sure)
         Object.keys(bridge.sockets).forEach(key =>  {
@@ -296,11 +298,11 @@ function SocketIoBridgeServer({
         
         // cleanup
         delete socks_by_bridgenum[bridgenum];
-        socks_by_label = null;
+        delete socks_by_label[mysock.__mylabel];
         
         let num_active_bridges = Object.keys(socks_by_bridgenum).length;
         
-        log.info(`Now ${num_active_bridges} active bridges remaining.`);
+        log.info(`SERVER Now ${num_active_bridges} active bridges remaining.`);
         
         delete bridges_by_num[bridgenum];
       });
