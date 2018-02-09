@@ -1,9 +1,7 @@
 # socket.io-bridge
 
-Real-time bidirectional event-based communication between two socket.io clients (rather than server-client)
+Real-time bidirectional event-based communication between two socket.io clients (rather than server-client).
 
-
-## Why?
 
 Normally, to route an event from one client to the other, one has to do:
 
@@ -90,23 +88,27 @@ bridge.make({
 
 Note:
 
-* The server doesn't need to hard-code event names
-* socket.io callbacks (functions as payload) work
+* The server doesn't need to hard-code event names.
+* socket.io callbacks (functions as payload) work.
 * There are no other event listeners except those which are specified by both clients (server passes through everything and has no reserved event names).
-* If one client disconnects the socket, the other socket is disconnected too.
-* Only one client needs to specify the argument `peer_uid`, the peer does not.
+* If one client disconnects the socket, the other socket will be disconnected too.
+* Only one client needs to specify the argument `peer_uid`, the other peer does not.
 * The `uid` argument must be globally unique. This is a hard requirement. If not, the `err` argument in `onresult` is set and `socket` will be `null`. However, after a client has disconnected, its name can be re-used.
+* Both clients can connect at different times (earlier or later than the other). Only as soon as the requested client, identified by `peer_id`, connects, the `onresult()` callback delivers the peer sockets on both clients.
+* An arbitrary number of client-client bridges can be created in this way by calling `make()` as many times as needed.
 
+
+The [test file](packages/client/tests/test.js) provides working examples. Run the tests with `npm test` in the directory `packages/client`.
 
 
 ## Connection establishment protocol
 
-This protocol is implemented by `socket.io-bridge/server` and `socket.io-bridge/client`. The user does not need to know about it.
+This protocol is implemented by the packages `socket.io-bridge/server` and `socket.io-bridge/client`. The user does not need to know about it, it's working behind the scenes.
 
-One master namespace on the server (here `/bridge`) serves to negotiate the creation of new private namespaces (in below example `bname`).
+One master namespace on the server (here called `/bridge`) is used to negotiate the creation of new private namespaces (in below example called `bname`).
 
 ````
-CLIENT c1                     SERVER                       CLIENT c2
+CLIENT c1                     SERVER                      CLIENT c2
                             nsp:/bridge
 ---------connection----------->  | 
 -----------login-------------->  | 
@@ -123,7 +125,7 @@ After which the clients connect to this new private namespace:
 
 ````
 
-CLIENT c1                     SERVER                       CLIENT c2
+CLIENT c1                     SERVER                      CLIENT c2
                          nsp:/bridge/bname
 ---------connection----------->  | 
 -----------start-------------->  |
@@ -145,3 +147,15 @@ After an echo test succeeds in both directions, all server-side and client-side 
 ````
 
 From socket.io-client documentation: "By default, a single connection is used when connecting to different namespaces (to minimize resources)". This means that all newly created namespaces are multiplexed over just one TCP connection.
+
+
+# License
+
+socket.io-bridge - Real-time bidirectional event-based communication between two socket.io clients.
+
+Copyright 2018 Michael Karl Franzl
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

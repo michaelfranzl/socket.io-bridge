@@ -2,7 +2,7 @@
 
 /*
 
-@socket.io-bridge/client - Real-time bidirectional event-based communication between two socket.io clients.
+socket.io-bridge-client - Real-time bidirectional event-based communication between two socket.io clients.
 
 Copyright 2018 Michael Karl Franzl
 

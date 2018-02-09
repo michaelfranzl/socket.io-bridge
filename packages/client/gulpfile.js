@@ -50,5 +50,5 @@ function buildStatic(infile, outfile, globalName) {
 
 
 gulp.task('build', function() {
-  buildStatic('client', 'client', 'SocketIoBridgeClient');
+  buildStatic('client', 'client', 'BridgeClient');
 });

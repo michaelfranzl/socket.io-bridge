@@ -1,6 +1,19 @@
-# socket.io-bridge/server
+# socket.io-bridge-server
 
 For more information and usage, see [../../README.md](../../README.md)
+
+
+Import in Node.js:
+
+    const BridgeServer = require('socket.io-bridge-server');
+    
+
+Generate `README.md` with API documentation parsed from jsdoc sources:
+
+    gulp readme
+    
+Testing is provided in the socket.io-bridge-client package
+
 
 # API Reference
 

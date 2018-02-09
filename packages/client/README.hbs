@@ -1,6 +1,42 @@
-# socket.io-bridge/client
+# socket.io-bridge-client
 
 For more information and usage, see [../../README.md](../../README.md)
+
+
+ES6 import:
+
+    import BridgeClient from 'socket.io-bridge-client';
+
+
+
+Until ES6 imports are widely supported...
+
+... import in Node.js:
+
+    const BridgeClient = require('socket.io-bridge-client/dist/client.js').default;
+
+... import in browsers:
+
+    <script src="socket.io-bridge-client/dist/client.js"></script>
+    <script>
+      window.addEventListener("load", function() {
+        var BridgeClient = window.BridgeClient.default;
+      });
+    </script>
+
+Run tests:
+
+    npm test
+
+Regenerate distribution files:
+
+    npm install
+    jspm install
+    gulp build
+    
+Generate `README.md` with API documentation parsed from jsdoc sources:
+
+    gulp readme
 
 # API Reference
 

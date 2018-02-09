@@ -1,14 +1,14 @@
 (function (global, factory) {
   typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
   typeof define === 'function' && define.amd ? define(['exports'], factory) :
-  (factory((global.SocketIoBridgeClient = global.SocketIoBridgeClient || {})));
+  (factory((global.BridgeClient = global.BridgeClient || {})));
 }(this, (function (exports) { 'use strict';
 
 /*jshint esversion: 6 */
 
 /*
 
-@socket.io-bridge/client - Real-time bidirectional event-based communication between two socket.io clients.
+socket.io-bridge-client - Real-time bidirectional event-based communication between two socket.io clients.
 
 Copyright 2018 Michael Karl Franzl
 

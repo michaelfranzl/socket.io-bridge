@@ -66,7 +66,7 @@ var client = new SocketIoBridgeClient({
 });
 
 
-var server = require('@socket.io-bridge/server')({
+var server = require('socket.io-bridge-server')({
   namespace: IOserver.of('/bridge'),
   log: mylog_server,
 });
