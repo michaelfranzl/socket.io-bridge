@@ -20,75 +20,77 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 /**
  * @typedef IO
- * @see {@link https://github.com/socketio/socket.io-client/blob/master/docs/API.md#socket}
+ * @see {@link https://github.com/socketio/socket.io-client}
  */
 
 /**
- * @typedef io.Socket
- * @see {@link https://github.com/socketio/socket.io-client}
+ * @typedef Socket
+ * @see {@link https://github.com/socketio/socket.io-client/blob/master/docs/API.md#socket}
  */
 
 /**
  * Constructor to instantiate a socket.io-bridge client.
  * 
- * Sets up one connection to the socket.io-bridge server which is re-used for several calls to {@link make} All clients behave the same, so one per application is enough.
- * 
- * @param {IO} IO
- * @param {string} uri - URI of the socket.io-bridge server plus namespace, e.g. 'https://localhost:3000/bridge'
- * @param {string} [io_opts={}] - Options for the IO constructor.
+ * @param {Object} opts
+ * @param {IO} opts.IO - The imported socket.io-client module
+ * @param {Socket} opts.socket - A socket.io-client socket which is already connected to the [socket.io-bridge/server]{@link ../server}, e.g. created by `IO('http://localhost:3000/bridge')`
+ * @param {Socket} [opts.io_opts={}] - Options to pass to `IO` when creating new bridge namespaces.
  * 
  */
-function SocketIoBridgeClient() {
+function BridgeClient(_ref) {
   var _this = this;
 
-  var _ref = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
-      IO = _ref.IO,
-      socket = _ref.socket;
+  var IO = _ref.IO,
+      socket = _ref.socket,
+      _ref$io_opts = _ref.io_opts,
+      io_opts = _ref$io_opts === undefined ? {} : _ref$io_opts;
 
   this.IO = IO;
-  this.mastersocket = socket;
-  this.uri = this.mastersocket.io.uri;
+  this.socket = socket;
+  this.io_opts = io_opts;
+
+  this.uri = this.socket.io.uri;
   this.clients = {};
   this.num_connections = 0;
 
-  this.mastersocket.on('internal_error', function (uuid, msg) {
+  this.socket.on('internal_error', function (uuid, msg) {
     var client = _this.clients[uuid];
     client.onInternalError(msg);
   });
 
-  this.mastersocket.on('connect_to_bridge', function (uuid, bridgenum) {
+  this.socket.on('connect_to_bridge', function (uuid, bridgenum) {
     var client = _this.clients[uuid];
     client.onConnectToBridge(bridgenum);
   });
 
-  this.mastersocket.on('logged_in', function (uuid) {
+  this.socket.on('logged_in', function (uuid) {
     var client = _this.clients[uuid];
     client.onLoggedIn();
   });
 }
 
 /**
- * Handler function for the result of the call to {@link make}.
+ * Handler function for the result of the call to `make()`.
  * 
- * @callback SocketIoBridgeClient~onresult
- * @param {io.Socket} socket - The transparent socket to the peer
- * @param {?Error} err - If an error occurred
+ * @callback BridgeClient~onresult
+ * @param {(Socket|null)} socket - The transparent socket to the peer
+ * @param {(Error|null)} err - If an error occurred
  */
 
 /**
- * Sets up a socket to the requested which can be used for transparent events (.emit(), on()) to the other peer.
+ * Make a bridge.
  *
- * @param {string} uid - Our unique ID. No two clients can use the same UID at the same time.
- * @param {string} [peer_uid] - The unique ID of the peer we want to establish a connection to.
- * @callback SocketIoBridgeClient~onresult onresult - Handler of the result of the operation.
- * @param {object} log - The logger to use. Must support info(), warn(), debug() and error() methods.
+ * @param {Object} opts - Options
+ * @param {string} opts.uid - Our unique ID.
+ * @param {BridgeClient~onresult} opts.onresult - Handler of the result of the operation.
+ * @param {string} [opts.peer_uid] - The unique ID of the peer we want to establish a connection to.
+ * @param {object} [opts.log] - The logger to use. Must support `info()`, `warn()`, `debug()` and `error()` methods.
  * 
  */
-SocketIoBridgeClient.prototype.make = function () {
+BridgeClient.prototype.make = function (_ref2) {
   var _this2 = this;
 
-  var _ref2 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
-      uid = _ref2.uid,
+  var uid = _ref2.uid,
       peer_uid = _ref2.peer_uid,
       onresult = _ref2.onresult,
       _ref2$log = _ref2.log,
@@ -99,15 +101,14 @@ SocketIoBridgeClient.prototype.make = function () {
     error: console.error
   } : _ref2$log;
 
+  // Reasonably unique
   var uuid = Date.now() + '_' + this.num_connections++;
-
-  var disconnected = false;
 
   if (!uid) throw new Error('uid is required');
 
   if (typeof onresult != 'function') throw new Error('onresult handler must be a function');
 
-  this.mastersocket.emit('login', uuid, uid);
+  this.socket.emit('login', uuid, uid);
 
   this.clients[uuid] = {
     onInternalError: function onInternalError(msg) {
@@ -117,12 +118,12 @@ SocketIoBridgeClient.prototype.make = function () {
     onConnectToBridge: function onConnectToBridge(bridgenum) {
       var uri = _this2.uri + '/' + bridgenum;
 
-      log.debug(uid, 'connect_to_bridge', uri);
+      log.debug(uid, 'connecting to bridge', uri);
 
-      var bridgesocket = _this2.IO(uri, _this2.mastersocket.io.opts);
+      // From socket.io-client documentation: "By default, a single connection is used when connecting to different namespaces (to minimize resources)"
+      var bridgesocket = _this2.IO(uri, _this2.io_opts);
 
       bridgesocket.once('disconnect', function () {
-        disconnected = true;
         log.debug(uid, 'disconnect');
       });
 
@@ -133,7 +134,6 @@ SocketIoBridgeClient.prototype.make = function () {
       bridgesocket.once('peer_connected', function () {
         log.debug(uid, 'peer_connected');
 
-        log.debug(uid, 'echotest');
         var testtext = 'testtext';
         bridgesocket.emit('echo', testtext, function (echoed) {
           if (testtext == echoed) {
@@ -152,15 +152,14 @@ SocketIoBridgeClient.prototype.make = function () {
 
     onLoggedIn: function onLoggedIn() {
       if (peer_uid) {
-        log.debug(uid, 'requesting bridge', peer_uid);
-        _this2.mastersocket.emit('request_bridge', uuid, uid, peer_uid);
+        log.debug(uid, 'requesting bridge to', peer_uid);
+        _this2.socket.emit('request_bridge', uuid, uid, peer_uid);
       }
     }
-
   };
 };
 
-exports['default'] = SocketIoBridgeClient;
+exports['default'] = BridgeClient;
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
