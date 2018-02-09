@@ -2,7 +2,7 @@
 
 /*
 
-@socket.io-bridge/client - Real-time bidirectional event-based communication between two socket.io clients.
+@socket.io-bridge/client - Real-time bidirectional event-based communication between two socket.io clients (rather than server-client).
 
 Copyright 2018 Michael Karl Franzl
 
@@ -16,13 +16,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 /**
  * @typedef IO
- * @see {@link https://github.com/socketio/socket.io-client/blob/master/docs/API.md#socket}
+ * @see {@link https://github.com/socketio/socket.io-client}
  */
  
  
 /**
  * @typedef io.Socket
- * @see {@link https://github.com/socketio/socket.io-client}
+ * @see {@link https://github.com/socketio/socket.io-client/blob/master/docs/API.md#socket}
  */
 
 
@@ -32,9 +32,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
  * 
  * Sets up one connection to the socket.io-bridge server which is re-used for several calls to {@link make} All clients behave the same, so one per application is enough.
  * 
- * @param {IO} IO
- * @param {string} uri - URI of the socket.io-bridge server plus namespace, e.g. 'https://localhost:3000/bridge'
- * @param {string} [io_opts={}] - Options for the IO constructor.
+ * @param {IO} IO - The imported socket.io-client module
+ * @param {io.Socket} socket - A socket to the socket.io-bridge/server, e.g. created by IO('http://localhost:3000/bridge')
  * 
  */ 
 function SocketIoBridgeClient({
@@ -42,22 +41,23 @@ function SocketIoBridgeClient({
   socket,
 } = {}) {
   this.IO = IO;
-  this.mastersocket = socket;
-  this.uri = this.mastersocket.io.uri;
+  this.socket = socket;
+  
+  this.uri = this.socket.io.uri;
   this.clients = {};
   this.num_connections = 0;
   
-  this.mastersocket.on('internal_error', (uuid, msg) => {
+  this.socket.on('internal_error', (uuid, msg) => {
     let client = this.clients[uuid];
     client.onInternalError(msg);
   });
   
-  this.mastersocket.on('connect_to_bridge', (uuid, bridgenum) => {
+  this.socket.on('connect_to_bridge', (uuid, bridgenum) => {
     let client = this.clients[uuid];
     client.onConnectToBridge(bridgenum);
   });
   
-  this.mastersocket.on('logged_in', (uuid) => {
+  this.socket.on('logged_in', (uuid) => {
     let client = this.clients[uuid];
     client.onLoggedIn();
   });
@@ -96,9 +96,8 @@ SocketIoBridgeClient.prototype.make = function({
   }
 } = {}) {
   
+  // Reasonably unique
   let uuid = `${Date.now()}_${this.num_connections++}`;
-  
-  let disconnected = false;
   
   if (!uid)
     throw new Error('uid is required');
@@ -107,8 +106,7 @@ SocketIoBridgeClient.prototype.make = function({
     throw new Error('onresult handler must be a function');
     
     
-  this.mastersocket.emit('login', uuid, uid);
-    
+  this.socket.emit('login', uuid, uid);
     
   this.clients[uuid] = {
     onInternalError: (msg) => {
@@ -118,12 +116,13 @@ SocketIoBridgeClient.prototype.make = function({
     onConnectToBridge: (bridgenum) => {
       var uri = this.uri + '/' + bridgenum;
 
-      log.debug(uid, 'connect_to_bridge', uri);
+      log.debug(uid, 'connecting to bridge', uri);
 
-      var bridgesocket = this.IO(uri, this.mastersocket.io.opts);
+
+      // From socket.io-client documentation: "By default, a single connection is used when connecting to different namespaces (to minimize resources)"
+      var bridgesocket = this.IO(uri, this.socket.io.opts);
 
       bridgesocket.once('disconnect', function () {
-        disconnected = true;
         log.debug(uid, 'disconnect');
       });
       
@@ -133,8 +132,7 @@ SocketIoBridgeClient.prototype.make = function({
 
       bridgesocket.once('peer_connected', function () {
         log.debug(uid, 'peer_connected');
-
-        log.debug(uid, 'echotest');
+        
         var testtext = 'testtext';
         bridgesocket.emit('echo', testtext, function (echoed) {
           if (testtext == echoed) {
@@ -153,14 +151,11 @@ SocketIoBridgeClient.prototype.make = function({
     
     onLoggedIn: () => {
       if (peer_uid) {
-        log.debug(uid, 'requesting bridge', peer_uid);
-        this.mastersocket.emit('request_bridge', uuid, uid, peer_uid);
+        log.debug(uid, 'requesting bridge to', peer_uid);
+        this.socket.emit('request_bridge', uuid, uid, peer_uid);
       }
     },
-    
   };
-  
-  
 };
 
 export default SocketIoBridgeClient;

@@ -1,7 +1,7 @@
 /*jshint esversion: 6 */
 
 /*
-@socket.io-bridge/- Real-time bidirectional event-based communication between two socket.io clients.
+@socket.io-bridge/server - Real-time bidirectional event-based communication between two socket.io clients (rather than server-client).
 
 Copyright 2018 Michael Karl Franzl
 
@@ -115,7 +115,7 @@ function SocketIoBridgeServer({
       log.info('Connection to /bridge');
       
       socket.on('login', (uuid, myid) => {
-        log.info('login of uid', uuid, myid);
+        log.info(myid, 'login');
         
         if (clients_by_id[myid]) {
           let msg = `Another client is already logged in with uid ${myid}`;
@@ -145,7 +145,7 @@ function SocketIoBridgeServer({
           let waiting_conn = conns_waiting_for_me[wid];
           
           if (!waiting_conn) {
-            // Sanity check. This should never happen. Honestly! ;)
+            // Sanity check. This should never happen.
             let msg = 'Server logic screwed up and must be revised';
             log.error(msg);
             socket.emit('internal_error', uuid, msg);
@@ -164,8 +164,6 @@ function SocketIoBridgeServer({
       socket.on('disconnect', () => {
         log.debug(myid, 'master socket disconnected');
       });
-      
-      
       
       socket.on('request_bridge', (uuid, myid, otherid) => {
         let bridgenum = num_bridges++;
@@ -310,6 +308,5 @@ function SocketIoBridgeServer({
   
   serve();
 }
-
 
 module.exports = SocketIoBridgeServer;
