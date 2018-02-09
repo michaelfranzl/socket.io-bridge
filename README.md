@@ -1,7 +1,6 @@
 # socket.io-bridge
 
-Real-time bidirectional event-based communication between two socket.io clients (rather than server-client).
-
+Real-time bidirectional event-based communication between two [socket.io](https://github.com/socketio) clients (rather than server-client).
 
 Normally, to route an event from one client to the other, one has to do:
 
