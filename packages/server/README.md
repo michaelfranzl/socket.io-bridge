@@ -33,7 +33,7 @@ Do not instantiate.
 | --- | --- | --- |
 | opts | <code>Object</code> |  |
 | opts.namespace | [<code>Namespace</code>](#Namespace) | For example: `require('socket.io')(3000).of('/bridge');` |
-| opts.log | <code>Object</code> | The logger to use. Must support `info()`, `warn()`, `debug()` and `error()` methods. |
+| [opts.log] | <code>Object</code> | The logger to use. Must support `info()`, `warn()`, `debug()` and `error()` methods. |
 
 <a name="Namespace"></a>
 

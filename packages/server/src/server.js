@@ -29,7 +29,7 @@ const MAX_NUM_BRIDGES = 100; // safety limit
  * 
  * @param {Object} opts
  * @param {Namespace} opts.namespace - For example: `require('socket.io')(3000).of('/bridge');`
- * @param {Object} opts.log - The logger to use. Must support `info()`, `warn()`, `debug()` and `error()` methods.
+ * @param {Object} [opts.log] - The logger to use. Must support `info()`, `warn()`, `debug()` and `error()` methods.
  * 
  */ 
 function BridgeServer({
