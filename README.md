@@ -96,6 +96,7 @@ Note:
 * The `uid` argument must be globally unique. This is a hard requirement. If not, the `err` argument in `onresult` is set and `socket` will be `null`. However, after a client has disconnected, its name can be re-used.
 * Both clients can connect at different times (earlier or later than the other). Only as soon as the requested client, identified by `peer_id`, connects, the `onresult()` callback delivers the peer sockets on both clients.
 * An arbitrary number of client-client bridges can be created in this way by calling `make()` as many times as needed.
+* This method only supports client-client connections (no broadcasts or multicasts).
 
 
 The [test file](packages/client/tests/test.js) provides working examples. Run the tests with `npm test` in the directory `packages/client`.
@@ -103,7 +104,7 @@ The [test file](packages/client/tests/test.js) provides working examples. Run th
 
 ## Connection establishment protocol
 
-This protocol is implemented by the packages `socket.io-bridge/server` and `socket.io-bridge/client`. The user does not need to know about it, it's working behind the scenes.
+This protocol is implemented by the packages `socket.io-bridge-server` and `socket.io-bridge-client`. The user does not need to know about it, it's working behind the scenes.
 
 One master namespace on the server (here called `/bridge`) is used to negotiate the creation of new private namespaces (in below example called `bname`).
 
@@ -121,7 +122,7 @@ CLIENT c1                     SERVER                      CLIENT c2
 <--- connect_to_bridge(bname)--- | -----connect_to_bridge(bname)-->
 
 ````
-After which the clients connect to this new private namespace:
+... after which the clients connect to this new private namespace:
 
 ````
 
@@ -146,7 +147,7 @@ After an echo test succeeds in both directions, all server-side and client-side 
  <---------------*---------------|-----------------*------------->
 ````
 
-From socket.io-client documentation: "By default, a single connection is used when connecting to different namespaces (to minimize resources)". This means that all newly created namespaces are multiplexed over just one TCP connection.
+From socket.io-client documentation: *"By default, a single connection is used when connecting to different namespaces (to minimize resources)".* This means that all newly created namespaces are multiplexed over just one TCP connection.
 
 
 # License
