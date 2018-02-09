@@ -79,16 +79,14 @@ This protocol is implemented by `socket.io-bridge/server` and `socket.io-bridge/
 One namespace on the server (here `/bridge`) serves to negotiate the creation of new private namespaces ('bridges', below `bname`).
 
 ````
-CLIENT c1                     SERVER                      CLIENT c2
-                              /bridge
+CLIENT c1                     SERVER                       CLIENT c2
+                            nsp:/bridge
 ---------connection----------->  | 
- <-------connected-------------- | 
 ---------login(c1)------------>  | 
  <------logged_in(c1)----------- | 
 ----request_bridge(c1,c2)----->  |
                                  |
                                  |  <--------connection-------------
-                                 | ---------connected------------->
                                  |  <--------login(c2)--------------
                                  | --------logged_in(c2)---------->
 <--- connect_to_bridge(bname)--- | -----connect_to_bridge(bname)-->
@@ -100,19 +98,22 @@ CLIENT c1                     SERVER                      CLIENT c2
 
 
 ````
-CLIENT c1                     SERVER               CLIENT c2
-                           /bridge/name
+CLIENT c1                     SERVER                       CLIENT c2
+                          nsp:/bridge/name
 ---------connection----------->  | 
- <--------connected------------- |
 ---------start(c1)------------>  |
                                  |
                                  |  <--------connection------------
-                                 | ---------connected------------>
                                  |  <--------start(c2)-------------
  <--------peer_connected-------- | ---------peer_connected------->
                                  |
 ---------echo(txt, cb)-------->  | ---------echo(txt,cb)--------->
- <---------cb(txt)-------------- | -----------cb(txt)------------>
+ <---------cb(txt)-------------- |  <----------cb(txt)-------------
+onresult(socket)                 |
                                  |
+ <--------echo(txt, cb)--------- |  <--------echo(txt,cb)----------
+-----------cb(txt)------------>  | -----------cb(txt)------------>
+                                                     onresult(socket)
+
  <---------------*---------------|-----------------*------------->
 ````

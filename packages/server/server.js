@@ -1,15 +1,42 @@
 /*jshint esversion: 6 */
 
+/*
+@socket.io-bridge/- Real-time bidirectional event-based communication between two socket.io clients.
 
-const MAX_NUM_BRIDGES = 100;
+Copyright 2018 Michael Karl Franzl
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
 
 
+const MAX_NUM_BRIDGES = 100; // safety limit
+
+
+
+/**
+ * @typedef Namespace
+ * @see {@link https://github.com/socketio/socket.io/blob/master/docs/API.md#namespace}
+ */
+ 
+ 
+/**
+ * Run a socket.io-bridge server.
+ * 
+ * Do not instantiate.
+ * 
+ * @param {Namespace} namespace
+ * @param {object} log - The logger to use. Must support info(), warn(), debug() and error() methods.
+ * 
+ */ 
 function SocketIoBridgeServer({
   namespace,
   log = {
     info: console.info,
     warn: console.warn,
-    debug: console.log,
+    debug: console.debug || console.log,
     error: console.error
   }
 } = {}) {
@@ -19,10 +46,16 @@ function SocketIoBridgeServer({
     throw(new Error('Do not instantiate this function with the `new` keyword.'));
   }
   
-  // bookkeeping
-  let socks_by_bridgenum = {};
-  let bridges_by_num = {};
+  if (!namespace) {
+    // We must be in the global scope.
+    throw(new Error('namespace required'));
+  }
   
+  // bookkeeping
+  let sockets_by_bridgenum = {};
+  let nsps_by_bridgenum = {}; // namespaces
+  let sockets_by_id = {};
+  let waiting_conns = {};
   
   /*
    * Patch for a socket.io socket to also call a
@@ -34,7 +67,6 @@ function SocketIoBridgeServer({
     sock.onevent = function (packet) {
       let args = packet.data || [];
       
-      // wildcard must come first, otherwise double callback functions
       packet.data = ['*'].concat(args);
       onevent_orig.call(this, packet);
       
@@ -46,7 +78,7 @@ function SocketIoBridgeServer({
   /*
    * Library function.
    * 
-   * Given an object with exactly 2 key:value pairs,
+   * Given an object obj with exactly 2 key:value pairs,
    * and given one key out of the two, return the other
    * key:value pair as an array.
   */
@@ -74,75 +106,62 @@ function SocketIoBridgeServer({
   }
   
   
-  /*
-   * Each master socket will set one UID via `login`.
-   * 
-   * Each master socket may request several bridges to another UID via `request_bridge`.
-   * 
-  */
-  function runBridgeNamespace() {
-    let clients = {};
-    let clients_waiting = {};
-    
+  
+  function serve() {
     let num_bridges = 0;
     
     namespace.on('connection', socket => {
       
-      log.info('SERVER Connection to /bridge');
+      log.info('Connection to /bridge');
       
-      socket.emit('connected');
-      
-      socket.on('login', (myid) => {
-        log.info('SERVER Login to bridge with UID', myid);
+      socket.on('login', myid => {
+        log.info('login of uid', myid);
         
-        if (clients[myid]) {
-          log.warn(`SERVER Already logged in with UID ${myid}. Is this a reconnect?`);
+        if (sockets_by_id[myid]) {
+          let msg = `Another client is already logged in with uid ${myid}`;
+          log.error(msg);
+          socket.emit('internal_error', myid, msg);
+          socket.disconnect();
+          return;
         }
         
-        let myinfo = clients[myid] = {
-          socket,
-          myid,
-        };
+        sockets_by_id[myid] = socket;
         
         socket.emit('logged_in', myid);
         
+        // Rest of this function: If other peers have requested our uid
+        // but we are late, notify them that we are ready.
         let waiting_clientids = [];
-        
-        if (clients_waiting[myid]) {
-          waiting_clientids = Object.keys(clients_waiting[myid]);
+        let conns_waiting_for_me = waiting_conns[myid];
+        if (conns_waiting_for_me) {
+          waiting_clientids = Object.keys(conns_waiting_for_me);
         }
         
-        //log.info('Waiting waiting_clientids', waiting_clientids);
+        log.debug(myid, 'waiting_clientids', waiting_clientids);
         
         for (let wid of waiting_clientids) {
-          let waiting_client_info = clients_waiting[myid][wid];
+          let waiting_conn = conns_waiting_for_me[wid];
           
-          if (!waiting_client_info) {
-            log.error('SERVER  NO OTHER waiting_client_info ERROR');
+          if (!waiting_conn) {
+            // Sanity check. This should never happen. Honestly! ;)
+            let msg = 'Server logic screwed up and must be revised';
+            log.error(msg);
+            socket.emit('internal_error', myid, msg);
             return;
           }
           
-          let bridgenum = waiting_client_info.bridgenum;
-          
+          let bridgenum = waiting_conn.bridgenum;
           makeBridge(bridgenum);
+          socket.emit('connect_to_bridge', myid, bridgenum);
+          waiting_conn.socket.emit('connect_to_bridge', wid, bridgenum);
           
-          // client needs a bit of time between logged_in and connect_to_bridge
-          setTimeout(() => {
-            socket.emit('connect_to_bridge', myid, bridgenum);
-          }, 100);
-          
-          waiting_client_info.socket.emit('connect_to_bridge', wid, bridgenum);
-          
-          
-          log.info('SERVER Late connect_to_bridge', bridgenum, wid);
-          
-          delete clients_waiting[myid][wid];
-        } // for
+          delete conns_waiting_for_me[wid];
+        } // for waiting clients
         
         socket.on('disconnect', () => {
-          log.warn('DISCONNECT MASTER SOCKET', myid);
-          delete clients[myid];
-          delete clients_waiting[myid];
+          log.debug(myid, 'master socket disconnected');
+          delete sockets_by_id[myid];
+          delete waiting_conns[myid];
         });
         
       }); // on login
@@ -150,171 +169,146 @@ function SocketIoBridgeServer({
       
       
       socket.on('request_bridge', (myid, otherid) => {
-        
-        let myinfo = clients[myid];
         let bridgenum = num_bridges++;
-        let otherclientinfo = clients[otherid];
         
-        log.info('SERVER request_bridge', myid, otherid);
+        log.debug('SERVER request_bridge', myid, otherid);
         
-        if (!otherclientinfo) {
-          log.warn(`request_bridge: Other client ${otherid} not yet connected`.yellow, myid, otherid, bridgenum);
+        let othersocket = sockets_by_id[otherid];
+
+        if (!othersocket) {
+          // other socket is not yet connected
+          if (!waiting_conns[otherid]) waiting_conns[otherid] = {};
           
-          if (!clients_waiting[otherid]) {
-            clients_waiting[otherid] = {};
-          }
-          
-          clients_waiting[otherid][myid] = {
-            id: myid,
+          waiting_conns[otherid][myid] = {
             socket: socket,
             bridgenum,
           };
-          return;
-        }
-        
-        
-        let res = makeBridge(bridgenum);
-        if (res instanceof Error) {
-          // This is the fault of server logic.
-          // It should never happen.
-          socket.emit('internal_error', res.message);
-          log.error('internal_error');
+          
+          log.debug('other socket is not yet connected', myid, otherid);
           
         } else {
-          socket.emit('connect_to_bridge', myid, bridgenum);
-          otherclientinfo.socket.emit('connect_to_bridge', otherid, bridgenum);
+          // other socket is already connected.
+          let res = makeBridge(bridgenum);
+          if (res instanceof Error) {
+            // This is the fault of logic.
+            // It should never happen.
+            socket.emit('internal_error', myid, res.message);
+            log.error(res.message);
+            
+          } else {
+            socket.emit('connect_to_bridge', myid, bridgenum);
+            othersocket.emit('connect_to_bridge', otherid, bridgenum);
+          }
         }
       }); // on request_bridge
-      
-      
-      
     }); // on connection
-    
-  } // makeMiddleman
+  } // serve()
   
   
   
-  /*
-   * After connection to the bridge, clients need to send the
-   * `start` event and supply a label which must stay unique
-   * across reconnects to the same bridge.
-   * 
-   * Security considerations: This is called internally, and since one needs collaboration of another client, it cannot be called as fast as possible.
-  */
   function makeBridge(bridgenum) {
-    log.info('SERVER makeBridge()', bridgenum);
+    let bridge_nsp;
     
-    let bridge;
-    
-    //console.log(namespace);
-    
-    if (bridges_by_num[bridgenum]) {
-      // fault of caller. bridgenum must be unique
-      let msg = `SERVER  ${bridgenum} already existing`;
+    if (nsps_by_bridgenum[bridgenum]) {
+      // Fault of caller of this function. bridgenum must be unique.
+      // This should never happen.
+      let msg = `Server logic error: ${bridgenum} already existing`;
       log.error(msg);
       return new Error(msg);
       
     } else {
-      
       let ns = `${namespace.name}/${bridgenum}`;
-
-      bridge = bridges_by_num[bridgenum] = namespace.server.of(ns);
-      
-      log.info(`SERVER  Creating bridge ${ns}`);
+      log.debug(`creating namespace ${ns}`);
+      bridge_nsp = nsps_by_bridgenum[bridgenum] = namespace.server.of(ns);
     }
-    
-    bridge.on('error', (err) => {
-      log.error(err);
-    });
       
-    bridge.on('connection', (mysock) => {
-      let socks_by_label;
-      // can be repeated, that's why we have to use labels
-
-      log.info(`SERVER Connection to bridge ${bridgenum}`);
+    bridge_nsp.on('connection', mysock => {
+      addWilcardHandler(mysock);
       
-      if (!socks_by_bridgenum[bridgenum]) {
+      let sockets_by_label;
+      
+      log.debug(`connection to bridge number ${bridgenum}`);
+      
+      if (!sockets_by_bridgenum[bridgenum]) {
         // first connect
-        socks_by_bridgenum[bridgenum] = socks_by_label = {};
+        sockets_by_bridgenum[bridgenum] = sockets_by_label = {};
         
       } else {
-        // second connect
-        socks_by_label = socks_by_bridgenum[bridgenum];
+        // subsequent connects
+        sockets_by_label = sockets_by_bridgenum[bridgenum];
       }
       
-      let num_active_bridges = Object.keys(socks_by_bridgenum).length;
+      let num_active_bridges = Object.keys(sockets_by_bridgenum).length;
       
       if (num_active_bridges > MAX_NUM_BRIDGES) {
-        // safety
-        log.error(`Number of active bridges reached safety limit. This is either a DOS attack or bad cleanup logic.`);
-        mysock.emit('internal_error', 'Safety limit reached');
+        // Don't bring the server down!
+        let msg = 'Number of active bridges exceeded safety limit';
+        log.error(msg);
         mysock.disconnect();
-        delete socks_by_bridgenum[bridgenum];
-        delete bridges_by_num[bridgenum];
+        delete sockets_by_bridgenum[bridgenum];
+        delete nsps_by_bridgenum[bridgenum];
         return;
       }
       
-      log.info(`SERVER Now ${num_active_bridges} bridges active.`);
-      
-      mysock.emit('connected');
+      log.debug(`now ${num_active_bridges} bridges active.`);
 
-      mysock.once('start', (mylabel) => {
+      mysock.once('start', (myid) => {
+        log.info(`bridge start by`, myid);
         
-        mysock.__mylabel = mylabel;
+        sockets_by_label[myid] = mysock;
         
-        addWilcardHandler(mysock);
+        mysock.on('*', (...args) => {
+          // transparent forwarding of all events, including callbacks
+          let [otherid, othersock] = getOtherKeyVal(sockets_by_label, myid);
+          if (othersock) {
+            log.debug(`${myid}--->${otherid}`, args[0]);
+            othersock.emit(...args);
+          } else {
+            let msg = `Other socket not yet connected. You should wait for the peer_connected event.`;
+            mysock.emit('internal_error', myid, msg);
+            log.warn(msg);
+          }
+        });
         
-        log.info(`SERVER bridge start by`, mylabel);
+        mysock.on('disconnect', () => {
+          log.debug(myid, 'disconnected');
+          
+          // Close all other sockets (just one, but we are thorough)
+          Object.keys(bridge_nsp.sockets).forEach(key =>  {
+            let sock = bridge_nsp.sockets[key];
+            if (sock) sock.disconnect();
+          });
+          
+          // cleanup
+          delete sockets_by_bridgenum[bridgenum];
+          
+          let num_active_bridges = Object.keys(sockets_by_bridgenum).length;
+          
+          log.debug(`Now ${num_active_bridges} active bridges remaining.`);
+          
+          delete nsps_by_bridgenum[bridgenum];
+          delete sockets_by_bridgenum[bridgenum];
+          
+          delete sockets_by_id[myid];
+          delete waiting_conns[myid];
+        }); // on disconnect
         
-        socks_by_label[mylabel] = mysock;
-
-        let [otherlabel, othersock] = getOtherKeyVal(socks_by_label, mylabel);
+        
+        
+        let [otherid, othersock] = getOtherKeyVal(sockets_by_label, myid);
         if (othersock) {
           mysock.emit('peer_connected');
           othersock.emit('peer_connected');
+          // At this point, the clients will do a bi-directional echo test.
         }
         
-        mysock.on('*', (...args) => {
-          let [otherlabel, othersock] = getOtherKeyVal(socks_by_label, mylabel);
-          if (othersock) {
-            log.debug(`${mylabel}--->${otherlabel}`, args[0]);
-          
-            othersock.emit(...args);
-          } else {
-            log.warn(`SERVER  Cannot bridge, other socket not yet connected`);
-          }
-        });
       }); // bridge once start
-      
-      
-      mysock.on('disconnect', () => {
-        log.warn(`SERVER  Bridge socket with label ${mysock.__mylabel} disconnected.`);
-        
-        // Close all other sockets (just one but we make sure)
-        Object.keys(bridge.sockets).forEach(key =>  {
-          let sock = bridge.sockets[key];
-          if (sock) sock.disconnect();
-        });
-        
-        // cleanup
-        delete socks_by_bridgenum[bridgenum];
-        delete socks_by_label[mysock.__mylabel];
-        
-        let num_active_bridges = Object.keys(socks_by_bridgenum).length;
-        
-        log.info(`SERVER Now ${num_active_bridges} active bridges remaining.`);
-        
-        delete bridges_by_num[bridgenum];
-      });
-      
-
-    }); // bridge on connections
-    
-    return bridge;
+    }); // bridge on connection
+    return bridge_nsp;
   } // makeBridge
   
   
-  runBridgeNamespace();
+  serve();
 }
 
 

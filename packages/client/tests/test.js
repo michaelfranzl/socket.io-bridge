@@ -1,9 +1,14 @@
 /*jshint esversion: 6 */
-var io_server = require('socket.io')(3000);
-var io_client = require('socket.io-client');
+var IOserver = require('socket.io')(3000);
+var IOclient = require('socket.io-client');
 
+require('colors');
 
-var log_devnull = {
+var SocketIoBridgeClient = require('../dist/client.js').default;
+
+var mylog_client, mylog_server;
+
+mylog_client = mylog_server = {
   info: () => {},
   warn: () => {},
   debug: () => {},
@@ -11,57 +16,41 @@ var log_devnull = {
   error: () => {}
 };
 
+mylog_server = {
+  info: (...args) => {console.log('SERVER'.blue, '[INFO]'.green, ...args);},
+  warn: (...args) => {console.log('SERVER'.blue, '[WARN]'.yellow, ...args);},
+  debug: (...args) => {console.log('SERVER'.blue, '[DEBUG]'.gray, ...args);},
+  trace: (...args) => {console.log('SERVER'.blue, '[TRACE]'.purple, ...args);},
+  error: (...args) => {console.log('SERVER'.blue, '[ERROR]'.red, ...args);},
+};
+
+
+mylog_client = {
+  info: (...args) => {console.log('CLIENT'.cyan, '[INFO]'.green, ...args);},
+  warn: (...args) => {console.log('CLIENT'.cyan, '[WARN]'.yellow, ...args);},
+  debug: (...args) => {console.log('CLIENT'.cyan, '[DEBUG]'.gray, ...args);},
+  trace: (...args) => {console.log('CLIENT'.cyan, '[TRACE]'.purple, ...args);},
+  error: (...args) => {console.log('CLIENT'.cyan, '[ERROR]'.red, ...args);},
+};
+
+
+var io_opts = {
+  rejectUnauthorized: false // permit self-signed cert
+};
+
+var bridge_mastersocket = IOclient('http://localhost:3000/bridge', io_opts);
+
+
+
+var client = new SocketIoBridgeClient({
+  socket: bridge_mastersocket,
+  IO: IOclient,
+});
+
 
 var server = require('@socket.io-bridge/server')({
-  namespace: io_server.of('/bridge'),
-  log: log_devnull,
-});
-
-
-var SocketIoBridgeClient = require('../dist/client.js').default;
-
-
-// ------------------------------------------
-let test1 = new Promise((resolve, reject) => {
-  let client1 = new SocketIoBridgeClient({
-    io: io_client,
-    uri: 'http://localhost:3000/bridge'
-  });
-
-  client1.make({
-    uid: `client1`,
-    peer_uid: 'client2',
-    log: log_devnull,
-    onsocket: (socket) => {
-      socket.on('add', (num1, num2, cb) => {
-        cb(num1 + num2);
-      });
-    },
-  });
-
-
-  setTimeout(() => {
-    let client2 = new SocketIoBridgeClient({
-      io: io_client,
-      uri: 'http://localhost:3000/bridge'
-    });
-
-    client2.make({
-      uid: 'client2',
-      log: log_devnull,
-      onsocket: (socket) => {
-        socket.emit('add', 3, 4, (result) => {
-          if (result == 7) {
-            console.log('test1 correct');
-            resolve();
-          } else {
-            reject('test1');
-          }
-          //socket.disconnect();
-        });
-      },
-    });
-  }, 800);
+  namespace: IOserver.of('/bridge'),
+  log: mylog_server,
 });
 
 
@@ -69,144 +58,222 @@ let test1 = new Promise((resolve, reject) => {
 
 
 // ------------------------------------------
-let test2 = new Promise((resolve, reject) => {
-  let client3 = new SocketIoBridgeClient({
-    io: io_client,
-    uri: 'http://localhost:3000/bridge'
-  });
-
-  setTimeout(() => {
-    client3.make({
-      uid: `client3`,
-      peer_uid: 'client4',
-      log: log_devnull,
-      onsocket: (socket) => {
+// Client 2 comes late. Client 1 does math.
+let test1 = () => {
+  return new Promise((resolve, reject) => {
+    client.make({
+      uid: `client1`,
+      peer_uid: 'client2',
+      log: mylog_client,
+      onresult: (socket, err) => {
+        if (err) throw err;
         socket.on('add', (num1, num2, cb) => {
           cb(num1 + num2);
         });
       },
     });
-  }, 800);
 
-  let client4 = new SocketIoBridgeClient({
-    io: io_client,
-    uri: 'http://localhost:3000/bridge'
-  });
 
-  client4.make({
-    uid: 'client4',
-    log: log_devnull,
-    onsocket: (socket) => {
-      socket.emit('add', 7, 6, (result) => {
-        if (result == 13) {
-          console.log('test2 correct');
-          resolve();
-        } else {
-          reject('test2');
-        }
-        //socket.disconnect();
+    setTimeout(() => {
+      client.make({
+        uid: 'client2',
+        log: mylog_client,
+        onresult: (socket, err) => {
+          if (err) throw err;
+          socket.emit('add', 3, 4, (result) => {
+            if (result == 7) {
+              console.log('test1 correct');
+              resolve();
+            } else {
+              reject('test1');
+            }
+            //socket.disconnect();
+          });
+        },
       });
-    },
+    }, 800);
   });
-});
+};
+
 
 
 
 
 // ------------------------------------------
-let test3 = new Promise((resolve, reject) => {
+// Client4 comes late. Client4 does math.
+let test2 = () => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      client.make({
+        uid: `client3`,
+        peer_uid: 'client4',
+        log: mylog_client,
+        onresult: (socket, err) => {
+          if (err) throw err;
+          socket.emit('add', 7, 6, (result) => {
+            if (result == 13) {
+              console.log('test2 correct');
+              resolve();
+            } else {
+              reject('test2');
+            }
+            //socket.disconnect();
+          });
+        
+        },
+      });
+    }, 800);
 
-  let client5 = new SocketIoBridgeClient({
-    io: io_client,
-    uri: 'http://localhost:3000/bridge'
-  });
-
-  let part1 =  new Promise((resolve, reject) => {
-    client5.make({
-      uid: `bob`,
-      peer_uid: 'sue',
-      log: log_devnull,
-      onsocket: (socket) => {
-        socket.emit('hello', 'bob');
-        socket.on('hello', (msg) => {
-          //socket.disconnect();
-          if (msg == 'nice to meet you, bob') {
-            console.log('test3 part1 correct');
-            resolve();
-          } else {
-            reject();
-          }
+    client.make({
+      uid: 'client4',
+      log: mylog_client,
+      onresult: (socket, err) => {
+        if (err) throw err;
+        socket.on('add', (num1, num2, cb) => {
+          cb(num1 + num2);
         });
       },
     });
   });
+};
 
-  let part2 =  new Promise((resolve, reject) => {
-    client5.make({
-      uid: `joe`,
-      peer_uid: 'jane',
-      log: log_devnull,
-      onsocket: (socket) => {
-        socket.emit('hello', 'joe');
-        socket.on('hello', (msg) => {
-          //socket.disconnect();
-          if (msg == 'nice to meet you, joe') {
-            console.log('test3 part2 correct');
-            resolve();
-          } else {
-            reject();
-          }
+
+
+
+
+
+
+// ------------------------------------------
+// If one peer socket is disconnected, it should disconnect the other socket too.
+let test4 = () => {
+  return new Promise((resolve, reject) => {
+
+    client.make({
+      uid: `client7`,
+      peer_uid: 'client8',
+      log: mylog_client,
+      onresult: (socket, err) => {
+        if (err) throw err;
+        socket.on('hello', () => {
+          socket.disconnect();
+          // this should disconnect the other socket too.
+          setTimeout(checkIfDisconnected, 200);
         });
       },
     });
+
+    let client8_socket;
+
+    client.make({
+      uid: 'client8',
+      log: mylog_client,
+      onresult: (socket, err) => {
+        if (err) throw err;
+        socket.emit('hello');
+        client8_socket = socket;
+      },
+    });
+    
+    function checkIfDisconnected() {
+      if (client8_socket.disconnected == true) {
+        console.log('test4 correct');
+        resolve();
+      } else {
+        reject('test4');
+      }
+      resolve();
+    }
   });
+};
 
 
-  let client6 = new SocketIoBridgeClient({
-    io: io_client,
-    uri: 'http://localhost:3000/bridge'
-  });
 
-  client6.make({
-    uid: 'sue',
-    log: log_devnull,
-    onsocket: (socket) => {
-      socket.on('hello', (name) => {
-        socket.emit('hello', `nice to meet you, ${name}`);
-      });
-    },
+// ------------------------------------------
+// Duplicate IDs should return an error
+let test5 = () => {
+  return new Promise((resolve, reject) => {
+    client.make({
+      uid: `duplicate!`,
+      log: mylog_client,
+      onresult: (socket, err) => {
+        if (err) throw err;
+      },
+    });
+    
+    client.make({
+      uid: `duplicate!`,
+      log: mylog_client,
+      onresult: (socket, err) => {
+        if (err) throw err;
+        if (err) {
+          console.log('test5 correct');
+          resolve();
+        } else {
+          reject('test5');
+        }
+      },
+    });
   });
+};
 
-  client6.make({
-    uid: 'jane',
-    log: log_devnull,
-    onsocket: (socket) => {
-      socket.on('hello', (name) => {
-        socket.emit('hello', `nice to meet you, ${name}`);
-      });
-    },
-  });
+
+
+/*
+
+// ------------------------------------------
+// Duplicate IDs are OK when not used at the same time
+let test6 = new Promise((resolve, reject) => {
+
+  function makeTwoClients(cb=null) {
+
+    
+    client.make({
+      uid: `doc`,
+      log: mylog_client,
+      onresult: (socket, err) => {
+        if (err) throw err;
+        console.log('doc connected');
+        socket.disconnect();
+        setTimeout(() => {
+          if (cb) {
+            console.log("CALLBACK");
+            cb();
+          } else {
+            resolve();
+          }
+        }, 1000);
+      },
+    });
+    
+    client.make({
+      uid: `marty`,
+      peer_uid: 'doc',
+      log: mylog_client,
+      onresult: (socket, err) => {
+        if (err) throw err;
+        console.log('marty connected');
+        socket.on('disconnect', () => {
+          console.log('marty disconnected');
+        });
+      },
+    });
+  }
+  makeTwoClients(makeTwoClients);
   
-  Promise.all([part1, part2])
-  .then(() => {
-    resolve();
-  })
-  .catch((str) => {
-    reject('test3');
-  });
 });
-
-
-
+*/
 
 
 // ------------------------------------------
 var timeout = setTimeout(() => {
   console.log('Timeout. Fail.');
   process.exit(2);
-}, 3000);
+}, 4000);
 
-Promise.all([test1, test2, test3])
+
+// test1(), test2(), test4(),
+Promise.all([test5()])
+//Promise.all([test6])
 .then(() => {
   clearTimeout(timeout);
   console.log('All tests passed');
