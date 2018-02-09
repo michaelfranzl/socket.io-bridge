@@ -1,6 +1,6 @@
 {
   "name": "socket.io-bridge-client",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Real-time bidirectional event-based communication between two socket.io clients",
   "main": "dist/client.js",
   "scripts": {
@@ -9,13 +9,13 @@
   "author": "Michael Karl Franzl",
   "license": "MIT",
   "devDependencies": {
-    "socket.io-bridge-server": "^0.1.1",
     "colors": "^1.1.2",
     "gulp": "^3.9.1",
     "jsdoc-to-markdown": "^4.0.1",
     "jspm": "^0.17.0-beta.41",
     "showdown": "^1.8.6",
     "socket.io": "^2.0.4",
+    "socket.io-bridge-server": "^0.1.2",
     "socket.io-client": "^2.0.4"
   },
   "publishConfig": {
