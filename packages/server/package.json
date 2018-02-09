@@ -1,6 +1,6 @@
 {
   "name": "@socket.io-bridge/server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Real-time bidirectional event-based communication between two socket.io clients",
   "main": "src/server.js",
   "scripts": {
