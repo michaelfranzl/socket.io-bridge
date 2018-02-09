@@ -31,8 +31,8 @@ Constructor to instantiate a socket.io-bridge client.
 | Param | Type | Default | Description |
 | --- | --- | --- | --- |
 | opts | <code>Object</code> |  |  |
-| [opts.IO] | [<code>IO</code>](#IO) |  | The imported socket.io-client module |
-| [opts.socket] | [<code>Socket</code>](#Socket) |  | A socket.io-client socket which is already connected to the [socket.io-bridge/server](../server), e.g. created by `IO('http://localhost:3000/bridge')` |
+| opts.IO | [<code>IO</code>](#IO) |  | The imported socket.io-client module |
+| opts.socket | [<code>Socket</code>](#Socket) |  | A socket.io-client socket which is already connected to the [socket.io-bridge/server](../server), e.g. created by `IO('http://localhost:3000/bridge')` |
 | [opts.io_opts] | [<code>Socket</code>](#Socket) | <code>{}</code> | Options to pass to `IO` when creating new bridge namespaces. |
 
 
