@@ -39,6 +39,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
  * 
  */
 function SocketIoBridgeClient() {
+  var _this = this;
+
   var _ref = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
       IO = _ref.IO,
       socket = _ref.socket;
@@ -46,6 +48,23 @@ function SocketIoBridgeClient() {
   this.IO = IO;
   this.mastersocket = socket;
   this.uri = this.mastersocket.io.uri;
+  this.clients = {};
+  this.num_connections = 0;
+
+  this.mastersocket.on('internal_error', function (uuid, msg) {
+    var client = _this.clients[uuid];
+    client.onInternalError(msg);
+  });
+
+  this.mastersocket.on('connect_to_bridge', function (uuid, bridgenum) {
+    var client = _this.clients[uuid];
+    client.onConnectToBridge(bridgenum);
+  });
+
+  this.mastersocket.on('logged_in', function (uuid) {
+    var client = _this.clients[uuid];
+    client.onLoggedIn();
+  });
 }
 
 /**
@@ -66,7 +85,7 @@ function SocketIoBridgeClient() {
  * 
  */
 SocketIoBridgeClient.prototype.make = function () {
-  var _this = this;
+  var _this2 = this;
 
   var _ref2 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
       uid = _ref2.uid,
@@ -80,69 +99,65 @@ SocketIoBridgeClient.prototype.make = function () {
     error: console.error
   } : _ref2$log;
 
+  var uuid = Date.now() + '_' + this.num_connections++;
+
   var disconnected = false;
 
   if (!uid) throw new Error('uid is required');
 
   if (typeof onresult != 'function') throw new Error('onresult handler must be a function');
 
-  this.mastersocket.emit('login', uid);
+  this.mastersocket.emit('login', uuid, uid);
 
-  this.mastersocket.once('internal_error', function (id, msg) {
-    if (disconnected || id != uid) return;
-    onresult(null, new Error(msg));
-  });
-
-  this.mastersocket.on('connect_to_bridge', function (id, bridgenum) {
-    if (disconnected || id != uid) return;
-
-    var uri = _this.uri + '/' + bridgenum;
-
-    log.debug('connect_to_bridge', uid, uri);
-
-    var bridgesocket = _this.IO(uri, _this.mastersocket.io.opts);
-
-    bridgesocket.once('disconnect', function () {
-      disconnected = true;
-      log.debug('disconnect', uid);
-    });
-
-    bridgesocket.once('internal_error', function (msg) {
+  this.clients[uuid] = {
+    onInternalError: function onInternalError(msg) {
       onresult(null, new Error(msg));
-    });
+    },
 
-    bridgesocket.once('peer_connected', function () {
-      log.debug('peer_connected', uid);
+    onConnectToBridge: function onConnectToBridge(bridgenum) {
+      var uri = _this2.uri + '/' + bridgenum;
 
-      log.debug('echotest', uid);
-      var testtext = 'testtext';
-      bridgesocket.emit('echo', testtext, function (echoed) {
-        if (testtext == echoed) {
-          log.debug('echo works. bridge successfully established', uid);
-          onresult(bridgesocket, null);
-        }
+      log.debug(uid, 'connect_to_bridge', uri);
+
+      var bridgesocket = _this2.IO(uri, _this2.mastersocket.io.opts);
+
+      bridgesocket.once('disconnect', function () {
+        disconnected = true;
+        log.debug(uid, 'disconnect');
       });
-    });
 
-    bridgesocket.once('echo', function (txt, cb) {
-      cb(txt);
-    });
+      bridgesocket.once('internal_error', function (msg) {
+        onresult(null, new Error(msg));
+      });
 
-    bridgesocket.emit('start', uid);
-  });
+      bridgesocket.once('peer_connected', function () {
+        log.debug(uid, 'peer_connected');
 
-  new Promise(function (resolve, reject) {
-    _this.mastersocket.on('logged_in', function (id) {
-      if (id != uid) return;
-      log.debug('CLIENT logged_in', uid);
-      resolve();
-    });
-  }).then(function () {
-    if (peer_uid) {
-      log.info('CLIENT requesting bridge', uid, peer_uid);
-      _this.mastersocket.emit('request_bridge', uid, peer_uid);
+        log.debug(uid, 'echotest');
+        var testtext = 'testtext';
+        bridgesocket.emit('echo', testtext, function (echoed) {
+          if (testtext == echoed) {
+            log.debug(uid, 'echo works. bridge successfully established');
+            onresult(bridgesocket, null);
+          }
+        });
+      });
+
+      bridgesocket.once('echo', function (txt, cb) {
+        cb(txt);
+      });
+
+      bridgesocket.emit('start', uid);
+    },
+
+    onLoggedIn: function onLoggedIn() {
+      if (peer_uid) {
+        log.debug(uid, 'requesting bridge', peer_uid);
+        _this2.mastersocket.emit('request_bridge', uuid, uid, peer_uid);
+      }
     }
-  });
+
+  };
 };
 
 exports['default'] = SocketIoBridgeClient;

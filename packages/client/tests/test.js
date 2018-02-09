@@ -1,4 +1,20 @@
 /*jshint esversion: 6 */
+
+/*
+@socket.io-bridge/client - Real-time bidirectional event-based communication between two socket.io clients.
+
+Copyright 2018 Michael Karl Franzl
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+
+/* ===== TESTS ===== */
+
+
 var IOserver = require('socket.io')(3000);
 var IOclient = require('socket.io-client');
 
@@ -7,14 +23,6 @@ require('colors');
 var SocketIoBridgeClient = require('../dist/client.js').default;
 
 var mylog_client, mylog_server;
-
-mylog_client = mylog_server = {
-  info: () => {},
-  warn: () => {},
-  debug: () => {},
-  trace: () => {},
-  error: () => {}
-};
 
 mylog_server = {
   info: (...args) => {console.log('SERVER'.blue, '[INFO]'.green, ...args);},
@@ -33,6 +41,15 @@ mylog_client = {
   error: (...args) => {console.log('CLIENT'.cyan, '[ERROR]'.red, ...args);},
 };
 
+
+// silent logging
+mylog_client = mylog_server = {
+  info: () => {},
+  warn: () => {},
+  debug: () => {},
+  trace: () => {},
+  error: () => {}
+};
 
 var io_opts = {
   rejectUnauthorized: false // permit self-signed cert
@@ -80,15 +97,17 @@ let test1 = () => {
         log: mylog_client,
         onresult: (socket, err) => {
           if (err) throw err;
-          socket.emit('add', 3, 4, (result) => {
-            if (result == 7) {
-              console.log('test1 correct');
-              resolve();
-            } else {
-              reject('test1');
-            }
-            //socket.disconnect();
-          });
+          setTimeout(() => {
+            socket.emit('add', 3, 4, (result) => {
+              if (result == 7) {
+                console.log('test1 passed'.magenta);
+                resolve();
+              } else {
+                reject('test1');
+              }
+              //socket.disconnect();
+            });
+          }, 100);
         },
       });
     }, 800);
@@ -110,16 +129,17 @@ let test2 = () => {
         log: mylog_client,
         onresult: (socket, err) => {
           if (err) throw err;
-          socket.emit('add', 7, 6, (result) => {
-            if (result == 13) {
-              console.log('test2 correct');
-              resolve();
-            } else {
-              reject('test2');
-            }
-            //socket.disconnect();
-          });
-        
+          setTimeout(() => {
+            socket.emit('add', 7, 6, (result) => {
+              if (result == 13) {
+                console.log('test2 passed'.magenta);
+                resolve();
+              } else {
+                reject('test2');
+              }
+              //socket.disconnect();
+            });
+          }, 100);
         },
       });
     }, 800);
@@ -145,7 +165,7 @@ let test2 = () => {
 
 // ------------------------------------------
 // If one peer socket is disconnected, it should disconnect the other socket too.
-let test4 = () => {
+let test3 = () => {
   return new Promise((resolve, reject) => {
 
     client.make({
@@ -169,17 +189,19 @@ let test4 = () => {
       log: mylog_client,
       onresult: (socket, err) => {
         if (err) throw err;
-        socket.emit('hello');
+        setTimeout(() => {
+          socket.emit('hello');
+        }, 100);
         client8_socket = socket;
       },
     });
     
     function checkIfDisconnected() {
       if (client8_socket.disconnected == true) {
-        console.log('test4 correct');
+        console.log('test3 passed'.magenta);
         resolve();
       } else {
-        reject('test4');
+        reject('test3');
       }
       resolve();
     }
@@ -190,7 +212,7 @@ let test4 = () => {
 
 // ------------------------------------------
 // Duplicate IDs should return an error
-let test5 = () => {
+let test4 = () => {
   return new Promise((resolve, reject) => {
     client.make({
       uid: `duplicate!`,
@@ -204,12 +226,11 @@ let test5 = () => {
       uid: `duplicate!`,
       log: mylog_client,
       onresult: (socket, err) => {
-        if (err) throw err;
         if (err) {
-          console.log('test5 correct');
+          console.log('test4 passed'.magenta);
           resolve();
         } else {
-          reject('test5');
+          reject('test4');
         }
       },
     });
@@ -218,62 +239,57 @@ let test5 = () => {
 
 
 
-/*
-
 // ------------------------------------------
 // Duplicate IDs are OK when not used at the same time
-let test6 = new Promise((resolve, reject) => {
+let test5 = () => {
+  return new Promise((resolve, reject) => {
 
-  function makeTwoClients(cb=null) {
-
+    function makeTwoClients(cb) {
+      client.make({
+        uid: `doc`,
+        log: mylog_client,
+        onresult: (socket, err) => {
+          if (err) throw err;
+          socket.disconnect();
+          setTimeout(() => {
+            if (cb) {
+              cb();
+            } else {
+              console.log("test5 passed".magenta);
+              resolve();
+            }
+          }, 1000);
+        },
+      });
+      
+      client.make({
+        uid: `marty`,
+        peer_uid: 'doc',
+        log: mylog_client,
+        onresult: (socket, err) => {
+          if (err) throw err;
+        },
+      });
+    }
     
-    client.make({
-      uid: `doc`,
-      log: mylog_client,
-      onresult: (socket, err) => {
-        if (err) throw err;
-        console.log('doc connected');
-        socket.disconnect();
-        setTimeout(() => {
-          if (cb) {
-            console.log("CALLBACK");
-            cb();
-          } else {
-            resolve();
-          }
-        }, 1000);
-      },
-    });
-    
-    client.make({
-      uid: `marty`,
-      peer_uid: 'doc',
-      log: mylog_client,
-      onresult: (socket, err) => {
-        if (err) throw err;
-        console.log('marty connected');
-        socket.on('disconnect', () => {
-          console.log('marty disconnected');
-        });
-      },
-    });
-  }
-  makeTwoClients(makeTwoClients);
-  
-});
-*/
+    makeTwoClients(makeTwoClients); // twice
+  });
+};
 
 
 // ------------------------------------------
 var timeout = setTimeout(() => {
   console.log('Timeout. Fail.');
   process.exit(2);
-}, 4000);
+}, 5000);
 
 
-// test1(), test2(), test4(),
-Promise.all([test5()])
-//Promise.all([test6])
+//test1() // do all tests serially
+// .then(() => test2())
+// .then(() => test3())
+// .then(() => test4())
+// .then(() => test4())
+Promise.all([test1(), test2(), test3(), test4(), test5()]) // do all tests in parallel
 .then(() => {
   clearTimeout(timeout);
   console.log('All tests passed');

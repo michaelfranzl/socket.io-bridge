@@ -54,7 +54,7 @@ function SocketIoBridgeServer({
   // bookkeeping
   let sockets_by_bridgenum = {};
   let nsps_by_bridgenum = {}; // namespaces
-  let sockets_by_id = {};
+  let clients_by_id = {};
   let waiting_conns = {};
   
   /*
@@ -111,23 +111,25 @@ function SocketIoBridgeServer({
     let num_bridges = 0;
     
     namespace.on('connection', socket => {
-      
+
       log.info('Connection to /bridge');
       
-      socket.on('login', myid => {
-        log.info('login of uid', myid);
+      socket.on('login', (uuid, myid) => {
+        log.info('login of uid', uuid, myid);
         
-        if (sockets_by_id[myid]) {
+        if (clients_by_id[myid]) {
           let msg = `Another client is already logged in with uid ${myid}`;
           log.error(msg);
-          socket.emit('internal_error', myid, msg);
-          socket.disconnect();
+          socket.emit('internal_error', uuid, msg);
           return;
         }
         
-        sockets_by_id[myid] = socket;
+        clients_by_id[myid] = {
+          socket,
+          uuid,
+        };
         
-        socket.emit('logged_in', myid);
+        socket.emit('logged_in', uuid);
         
         // Rest of this function: If other peers have requested our uid
         // but we are late, notify them that we are ready.
@@ -146,45 +148,43 @@ function SocketIoBridgeServer({
             // Sanity check. This should never happen. Honestly! ;)
             let msg = 'Server logic screwed up and must be revised';
             log.error(msg);
-            socket.emit('internal_error', myid, msg);
+            socket.emit('internal_error', uuid, msg);
             return;
           }
           
           let bridgenum = waiting_conn.bridgenum;
           makeBridge(bridgenum);
-          socket.emit('connect_to_bridge', myid, bridgenum);
-          waiting_conn.socket.emit('connect_to_bridge', wid, bridgenum);
+          socket.emit('connect_to_bridge', uuid, bridgenum);
+          waiting_conn.socket.emit('connect_to_bridge', waiting_conn.uuid, bridgenum);
           
           delete conns_waiting_for_me[wid];
         } // for waiting clients
-        
-        socket.on('disconnect', () => {
-          log.debug(myid, 'master socket disconnected');
-          delete sockets_by_id[myid];
-          delete waiting_conns[myid];
-        });
-        
       }); // on login
       
+      socket.on('disconnect', () => {
+        log.debug(myid, 'master socket disconnected');
+      });
       
       
-      socket.on('request_bridge', (myid, otherid) => {
+      
+      socket.on('request_bridge', (uuid, myid, otherid) => {
         let bridgenum = num_bridges++;
         
-        log.debug('SERVER request_bridge', myid, otherid);
+        log.debug(myid, 'request_bridge', otherid);
         
-        let othersocket = sockets_by_id[otherid];
+        let otherclient = clients_by_id[otherid];
 
-        if (!othersocket) {
+        if (!otherclient) {
           // other socket is not yet connected
           if (!waiting_conns[otherid]) waiting_conns[otherid] = {};
           
           waiting_conns[otherid][myid] = {
+            uuid: uuid,
             socket: socket,
             bridgenum,
           };
           
-          log.debug('other socket is not yet connected', myid, otherid);
+          log.debug(myid, 'other socket is not yet connected', otherid);
           
         } else {
           // other socket is already connected.
@@ -192,12 +192,12 @@ function SocketIoBridgeServer({
           if (res instanceof Error) {
             // This is the fault of logic.
             // It should never happen.
-            socket.emit('internal_error', myid, res.message);
+            socket.emit('internal_error', uuid, res.message);
             log.error(res.message);
             
           } else {
-            socket.emit('connect_to_bridge', myid, bridgenum);
-            othersocket.emit('connect_to_bridge', otherid, bridgenum);
+            socket.emit('connect_to_bridge', uuid, bridgenum);
+            otherclient.socket.emit('connect_to_bridge', otherclient.uuid, bridgenum);
           }
         }
       }); // on request_bridge
@@ -253,7 +253,7 @@ function SocketIoBridgeServer({
       log.debug(`now ${num_active_bridges} bridges active.`);
 
       mysock.once('start', (myid) => {
-        log.info(`bridge start by`, myid);
+        log.info(myid, `bridge start by`);
         
         sockets_by_label[myid] = mysock;
         
@@ -261,12 +261,12 @@ function SocketIoBridgeServer({
           // transparent forwarding of all events, including callbacks
           let [otherid, othersock] = getOtherKeyVal(sockets_by_label, myid);
           if (othersock) {
-            log.debug(`${myid}--->${otherid}`, args[0]);
+            log.debug(myid, `--->${otherid}`, args[0]);
             othersock.emit(...args);
           } else {
             let msg = `Other socket not yet connected. You should wait for the peer_connected event.`;
             mysock.emit('internal_error', myid, msg);
-            log.warn(msg);
+            log.warn(myid, msg);
           }
         });
         
@@ -284,12 +284,12 @@ function SocketIoBridgeServer({
           
           let num_active_bridges = Object.keys(sockets_by_bridgenum).length;
           
-          log.debug(`Now ${num_active_bridges} active bridges remaining.`);
+          log.debug(myid, `Now ${num_active_bridges} active bridges remaining.`);
           
           delete nsps_by_bridgenum[bridgenum];
           delete sockets_by_bridgenum[bridgenum];
           
-          delete sockets_by_id[myid];
+          delete clients_by_id[myid];
           delete waiting_conns[myid];
         }); // on disconnect
         
