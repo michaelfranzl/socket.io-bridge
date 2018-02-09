@@ -35,7 +35,7 @@ With socket.io-bridge, the same can be accomplished like this:
 On the server (Node.js):
 
 ````javascript
-require('@socket.io-bridge/server')({
+require('socket.io-bridge-server')({
   namespace: io.of('/bridge'),
 });
 
@@ -55,7 +55,7 @@ bridge.make({
     socket.emit('event1');
     
     socket.on('event2', (txt, cb) => {
-      cb(arg); // socket.io callbacks work too
+      cb(txt); // socket.io callbacks work too
     });
     
     // etc.
@@ -76,8 +76,8 @@ bridge.make({
       // client1 called event1
     });
     
-    socket.emit('event2', 'hello', () => {
-      // client1 confirmed event2
+    socket.emit('event2', 'hello', (txt) => {
+      // client1 confirmed event2 (this implements an echo)
     });
     
     // etc.
