@@ -1,6 +1,6 @@
 # socket.io-bridge-server
 
-For more information and usage, see [../../README.md](../../README.md)
+For more information, see README.md of the project's github page.
 
 
 Import in Node.js:

@@ -6,6 +6,16 @@
   "scripts": {
     "test": "echo \"Please run tests in package socket.io-bridge-client\" && exit 1"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/michaelfranzl/socket.io-bridge.git"
+  },
+  "keywords": [
+    "socket.io",
+    "socketio",
+    "events",
+    "client-client"
+  ],
   "author": "Michael Karl Franzl",
   "license": "MIT",
   "devDependencies": {
