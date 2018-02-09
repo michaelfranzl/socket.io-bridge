@@ -3,25 +3,26 @@
 const gulp = require('gulp');
 const Builder = require('systemjs-builder');
 const fs = require('fs');
+const showdown = require('showdown');
 
 
-// gulp.task('readme', function() {
-//   const fs = require('fs');
-//   const jsdoc2md = require('jsdoc-to-markdown');
-// 
-//   const output = jsdoc2md.renderSync({
-//     files: 'src/*.js',
-//     template: fs.readFileSync('README.hbs').toString(),
-//   });
-//   fs.writeFileSync('README.md', output);
-//   
-//   var converter = new showdown.Converter({
-//     tables: true,
-//   });
-//   
-//   // for debugging only
-//   //fs.writeFileSync('README.html', converter.makeHtml(output));
-// });
+gulp.task('readme', function() {
+  const fs = require('fs');
+  const jsdoc2md = require('jsdoc-to-markdown');
+
+  const output = jsdoc2md.renderSync({
+    files: 'src/*.js',
+    template: fs.readFileSync('README.hbs').toString(),
+  });
+  fs.writeFileSync('README.md', output);
+  
+  var converter = new showdown.Converter({
+    tables: true,
+  });
+  
+  // for debugging only
+  //fs.writeFileSync('README.html', converter.makeHtml(output));
+});
 
 function buildStatic(infile, outfile, globalName) {
   let systemBuilder = new Builder('', 'jspm.config.js');

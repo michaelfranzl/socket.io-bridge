@@ -52,14 +52,17 @@ mylog_client = mylog_server = {
 };
 
 
-var bridge_mastersocket = IOclient('http://localhost:3000/bridge', {
+var io_opts = {
   rejectUnauthorized: false // permit self-signed cert
-});
+};
+
+var bridge_mastersocket = IOclient('http://localhost:3000/bridge', io_opts);
 
 
 var client = new SocketIoBridgeClient({
   socket: bridge_mastersocket,
   IO: IOclient,
+  io_opts,
 });
 
 

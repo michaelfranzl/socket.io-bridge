@@ -1,13 +1,17 @@
 {
   "name": "@socket.io-bridge/server",
   "version": "0.1.0",
-  "description": "",
-  "main": "server.js",
+  "description": "Real-time bidirectional event-based communication between two socket.io clients",
+  "main": "src/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Please run tests in package @socket.io-bridge/client\" && exit 1"
   },
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
+  "author": "Michael Karl Franzl",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "jsdoc-to-markdown": "^4.0.1",
+    "showdown": "^1.8.6"
   }
 }

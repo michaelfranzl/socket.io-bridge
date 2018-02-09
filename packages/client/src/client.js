@@ -21,7 +21,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
  
  
 /**
- * @typedef io.Socket
+ * @typedef Socket
  * @see {@link https://github.com/socketio/socket.io-client/blob/master/docs/API.md#socket}
  */
 
@@ -30,18 +30,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 /**
  * Constructor to instantiate a socket.io-bridge client.
  * 
- * Sets up one connection to the socket.io-bridge server which is re-used for several calls to {@link make} All clients behave the same, so one per application is enough.
- * 
- * @param {IO} IO - The imported socket.io-client module
- * @param {io.Socket} socket - A socket to the socket.io-bridge/server, e.g. created by IO('http://localhost:3000/bridge')
+ * @param {Object} opts
+ * @param {IO} opts.IO - The imported socket.io-client module
+ * @param {Socket} opts.socket - A socket.io-client socket which is already connected to the [socket.io-bridge/server]{@link ../server}, e.g. created by `IO('http://localhost:3000/bridge')`
+ * @param {Socket} [opts.io_opts={}] - Options to pass to `IO` when creating new bridge namespaces.
  * 
  */ 
-function SocketIoBridgeClient({
+function BridgeClient({
   IO,
   socket,
-} = {}) {
+  io_opts = {},
+}) {
   this.IO = IO;
   this.socket = socket;
+  this.io_opts = io_opts;
   
   this.uri = this.socket.io.uri;
   this.clients = {};
@@ -66,25 +68,26 @@ function SocketIoBridgeClient({
 
 
 /**
- * Handler function for the result of the call to {@link make}.
+ * Handler function for the result of the call to `make()`.
  * 
- * @callback SocketIoBridgeClient~onresult
- * @param {io.Socket} socket - The transparent socket to the peer
- * @param {?Error} err - If an error occurred
+ * @callback BridgeClient~onresult
+ * @param {(Socket|null)} socket - The transparent socket to the peer
+ * @param {(Error|null)} err - If an error occurred
  */
  
  
 
 /**
- * Sets up a socket to the requested which can be used for transparent events (.emit(), on()) to the other peer.
+ * Make a bridge.
  *
- * @param {string} uid - Our unique ID. No two clients can use the same UID at the same time.
- * @param {string} [peer_uid] - The unique ID of the peer we want to establish a connection to.
- * @callback SocketIoBridgeClient~onresult onresult - Handler of the result of the operation.
- * @param {object} log - The logger to use. Must support info(), warn(), debug() and error() methods.
+ * @param {Object} opts - Options
+ * @param {string} opts.uid - Our unique ID.
+ * @param {BridgeClient~onresult} opts.onresult - Handler of the result of the operation.
+ * @param {string} [opts.peer_uid] - The unique ID of the peer we want to establish a connection to.
+ * @param {object} [opts.log] - The logger to use. Must support `info()`, `warn()`, `debug()` and `error()` methods.
  * 
  */ 
-SocketIoBridgeClient.prototype.make = function({
+BridgeClient.prototype.make = function({
   uid,
   peer_uid,
   onresult,
@@ -94,7 +97,7 @@ SocketIoBridgeClient.prototype.make = function({
     debug: console.debug || console.log,
     error: console.error
   }
-} = {}) {
+}) {
   
   // Reasonably unique
   let uuid = `${Date.now()}_${this.num_connections++}`;
@@ -120,7 +123,7 @@ SocketIoBridgeClient.prototype.make = function({
 
 
       // From socket.io-client documentation: "By default, a single connection is used when connecting to different namespaces (to minimize resources)"
-      var bridgesocket = this.IO(uri, this.socket.io.opts);
+      var bridgesocket = this.IO(uri, this.io_opts);
 
       bridgesocket.once('disconnect', function () {
         log.debug(uid, 'disconnect');
@@ -158,4 +161,4 @@ SocketIoBridgeClient.prototype.make = function({
   };
 };
 
-export default SocketIoBridgeClient;
+export default BridgeClient;

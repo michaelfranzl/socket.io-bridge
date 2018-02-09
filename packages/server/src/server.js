@@ -1,7 +1,7 @@
 /*jshint esversion: 6 */
 
 /*
-@socket.io-bridge/server - Real-time bidirectional event-based communication between two socket.io clients (rather than server-client).
+@socket.io-bridge/server - Real-time bidirectional event-based communication between two socket.io clients.
 
 Copyright 2018 Michael Karl Franzl
 
@@ -27,11 +27,12 @@ const MAX_NUM_BRIDGES = 100; // safety limit
  * 
  * Do not instantiate.
  * 
- * @param {Namespace} namespace
- * @param {object} log - The logger to use. Must support info(), warn(), debug() and error() methods.
+ * @param {Object} opts
+ * @param {Namespace} opts.namespace - For example: `require('socket.io')(3000).of('/bridge');`
+ * @param {Object} opts.log - The logger to use. Must support `info()`, `warn()`, `debug()` and `error()` methods.
  * 
  */ 
-function SocketIoBridgeServer({
+function BridgeServer({
   namespace,
   log = {
     info: console.info,
@@ -309,4 +310,4 @@ function SocketIoBridgeServer({
   serve();
 }
 
-module.exports = SocketIoBridgeServer;
+module.exports = BridgeServer;

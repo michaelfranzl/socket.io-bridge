@@ -1,6 +1,6 @@
 # socket.io-bridge
 
-Client-client events.
+Real-time bidirectional event-based communication between two socket.io clients (rather than server-client)
 
 
 ## Why?
@@ -52,7 +52,8 @@ On client 1 (browser or Node.js):
 bridge.make({
   uid: 'client1',      // our unique ID
   peer_uid: 'client2', // the peer's unique ID
-  onresult: (socket) => {
+  onresult: (socket, err) => {
+    if (err) raise err;
     
     socket.emit('event1');
     
@@ -71,7 +72,8 @@ On client c2 (browser or Node.js):
 ````javascript
 bridge.make({
   uid: 'client2',  // our unique ID
-  onsocket: (socket) => {
+  onresult: (socket, err) => {
+    if (err) raise err;
   
     socket.on('event1', () => {
       // client1 called event1
@@ -86,12 +88,14 @@ bridge.make({
 });
 ````
 
-Note that:
+Note:
 
 * The server doesn't need to hard-code event names
 * socket.io callbacks (functions as payload) work
-* There are no other event listeners except those which are specified by both clients
+* There are no other event listeners except those which are specified by both clients (server passes through everything and has no reserved event names).
 * If one client disconnects the socket, the other socket is disconnected too.
+* Only one client needs to specify the argument `peer_uid`, the peer does not.
+* The `uid` argument must be globally unique. This is a hard requirement. If not, the `err` argument in `onresult` is set and `socket` will be `null`. However, after a client has disconnected, its name can be re-used.
 
 
 

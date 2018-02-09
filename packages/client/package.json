@@ -1,26 +1,27 @@
 {
   "name": "@socket.io-bridge/client",
   "version": "0.1.0",
-  "description": "",
-  "main": "client.js",
+  "description": "Real-time bidirectional event-based communication between two socket.io clients",
+  "main": "dist/client.js",
   "scripts": {
     "test": "node ./tests/test.js"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Michael Karl Franzl",
+  "license": "MIT",
   "devDependencies": {
     "@socket.io-bridge/server": "^0.1.0",
     "colors": "^1.1.2",
     "gulp": "^3.9.1",
+    "jsdoc-to-markdown": "^4.0.1",
     "jspm": "^0.17.0-beta.41",
+    "showdown": "^1.8.6",
     "socket.io": "^2.0.4",
     "socket.io-client": "^2.0.4"
   },
   "jspm": {
     "name": "@socket.io-bridge/client",
-    "main": "@socket.io-bridge/client.js",
-    "dependencies": {
-    },
+    "main": "src/client.js",
+    "dependencies": {},
     "devDependencies": {
       "plugin-babel": "npm:systemjs-plugin-babel@^0.0.25"
     },
