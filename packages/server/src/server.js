@@ -115,16 +115,8 @@ function BridgeServer({
 
       log.info('Connection to /bridge');
       
-      
       socket.on('login', (uuid, myid) => {
         log.info(myid, 'login');
-        
-        if (global_clients_by_id[myid]) {
-          let msg = `Another client is already logged in with uid ${myid}`;
-          log.error(msg);
-          socket.emit('internal_error', uuid, msg);
-          return;
-        }
         
         global_clients_by_id[myid] = {
           socket,

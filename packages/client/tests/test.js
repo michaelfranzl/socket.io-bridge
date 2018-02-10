@@ -42,7 +42,7 @@ mylog_client = {
 };
 
 
-// silent logging
+//silent logging
 mylog_client = mylog_server = {
   info: () => {},
   warn: () => {},
@@ -210,38 +210,9 @@ let test3 = () => {
 };
 
 
-
-// ------------------------------------------
-// Duplicate IDs should return an error
-let test4 = () => {
-  return new Promise((resolve, reject) => {
-    client.make({
-      uid: `duplicate!`,
-      log: mylog_client,
-      onresult: (socket, err) => {
-        if (err) throw err;
-      },
-    });
-    
-    client.make({
-      uid: `duplicate!`,
-      log: mylog_client,
-      onresult: (socket, err) => {
-        if (err) {
-          console.log('test4 passed'.magenta);
-          resolve();
-        } else {
-          reject('test4');
-        }
-      },
-    });
-  });
-};
-
-
 // ------------------------------------------
 // clientA connects to clientB, then clientA disconnects and reconnects to clientB.
-let test5 = () => {
+let test4 = () => {
   return new Promise((resolve, reject) => {
 
     function connectToClientB(cb) {
@@ -299,8 +270,7 @@ var timeout = setTimeout(() => {
 // .then(() => test2())
 // .then(() => test3())
 // .then(() => test4())
-// .then(() => test4())
-Promise.all([test1(), test2(), test3(), test4(), test5()]) // do all tests in parallel
+Promise.all([test1(), test2(), test3(), test4()]) // do all tests in parallel
 .then(() => {
   return new Promise((resolve, reject) => {
     bridge_mastersocket.on('disconnect', () => {
