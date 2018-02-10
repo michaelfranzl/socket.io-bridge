@@ -50,7 +50,7 @@ bridge.make({
   uid: 'client1',      // our unique ID
   peer_uid: 'client2', // the peer's unique ID
   onresult: (socket, err) => {
-    if (err) raise err;
+    if (err) throw err;
     
     socket.emit('event1');
     
@@ -70,7 +70,7 @@ On client c2 (browser or Node.js):
 bridge.make({
   uid: 'client2',  // our unique ID
   onresult: (socket, err) => {
-    if (err) raise err;
+    if (err) throw err;
   
     socket.on('event1', () => {
       // client1 called event1
