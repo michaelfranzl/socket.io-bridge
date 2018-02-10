@@ -53,10 +53,10 @@ function BridgeServer({
   }
   
   // bookkeeping
-  let sockets_by_bridgenum = {};
-  let nsp_by_bridgenum = {}; // namespaces
-  let master_clients_by_id = {};
-  let master_waiting_conns = {};
+  let global_sockets_by_bridgenum = {};
+  let global_nsp_by_bridgenum = {}; // namespaces
+  let global_clients_by_id = {};
+  let global_waiting_conns = {};
   
   /*
    * Patch for a socket.io socket to also call a
@@ -119,14 +119,14 @@ function BridgeServer({
       socket.on('login', (uuid, myid) => {
         log.info(myid, 'login');
         
-        if (master_clients_by_id[myid]) {
+        if (global_clients_by_id[myid]) {
           let msg = `Another client is already logged in with uid ${myid}`;
           log.error(msg);
           socket.emit('internal_error', uuid, msg);
           return;
         }
         
-        master_clients_by_id[myid] = {
+        global_clients_by_id[myid] = {
           socket,
           uuid,
         };
@@ -136,7 +136,7 @@ function BridgeServer({
         // Rest of this function: If other peers have requested our uid
         // but we are late, notify them that we are ready.
         let waiting_clientids = [];
-        let conns_waiting_for_me = master_waiting_conns[myid];
+        let conns_waiting_for_me = global_waiting_conns[myid];
         if (conns_waiting_for_me) {
           waiting_clientids = Object.keys(conns_waiting_for_me);
         }
@@ -172,13 +172,13 @@ function BridgeServer({
         
         log.debug(myid, 'request_bridge', otherid);
         
-        let otherclient = master_clients_by_id[otherid];
+        let otherclient = global_clients_by_id[otherid];
 
         if (!otherclient) {
           // other socket is not yet connected
-          if (!master_waiting_conns[otherid]) master_waiting_conns[otherid] = {};
+          if (!global_waiting_conns[otherid]) global_waiting_conns[otherid] = {};
           
-          master_waiting_conns[otherid][myid] = {
+          global_waiting_conns[otherid][myid] = {
             uuid: uuid,
             socket: socket,
             bridgenum,
@@ -209,7 +209,7 @@ function BridgeServer({
   function makeBridge(bridgenum) {
     let bridge_nsp;
     
-    if (nsp_by_bridgenum[bridgenum]) {
+    if (global_nsp_by_bridgenum[bridgenum]) {
       // Fault of caller of this function. bridgenum must be unique.
       // This should never happen.
       let msg = `Server logic error: ${bridgenum} already existing`;
@@ -219,34 +219,34 @@ function BridgeServer({
     } else {
       let ns = `${namespace.name}/${bridgenum}`;
       log.debug(`creating namespace ${ns}`);
-      bridge_nsp = nsp_by_bridgenum[bridgenum] = namespace.server.of(ns);
+      bridge_nsp = global_nsp_by_bridgenum[bridgenum] = namespace.server.of(ns);
     }
       
     bridge_nsp.on('connection', mysock => {
       addWilcardHandler(mysock);
       
-      let sockets_by_id;
+      let bridge_sockets_by_id;
       
       log.debug(`connection to bridge number ${bridgenum}`);
       
-      if (!sockets_by_bridgenum[bridgenum]) {
+      if (!global_sockets_by_bridgenum[bridgenum]) {
         // first connect
-        sockets_by_bridgenum[bridgenum] = sockets_by_id = {};
+        global_sockets_by_bridgenum[bridgenum] = bridge_sockets_by_id = {};
         
       } else {
         // subsequent connects
-        sockets_by_id = sockets_by_bridgenum[bridgenum];
+        bridge_sockets_by_id = global_sockets_by_bridgenum[bridgenum];
       }
       
-      let num_active_bridges = Object.keys(sockets_by_bridgenum).length;
+      let num_active_bridges = Object.keys(global_sockets_by_bridgenum).length;
       
       if (num_active_bridges > MAX_NUM_BRIDGES) {
         // Don't bring the server down!
         let msg = 'Number of active bridges exceeded safety limit';
         log.error(msg);
         mysock.disconnect();
-        delete sockets_by_bridgenum[bridgenum];
-        delete nsp_by_bridgenum[bridgenum];
+        delete global_sockets_by_bridgenum[bridgenum];
+        delete global_nsp_by_bridgenum[bridgenum];
         return;
       }
       
@@ -255,11 +255,11 @@ function BridgeServer({
       mysock.once('start', (myid) => {
         log.info(myid, `bridge start`);
         
-        sockets_by_id[myid] = mysock;
+        bridge_sockets_by_id[myid] = mysock;
         
         mysock.on('*', (...args) => {
           // transparent forwarding of all events, including callbacks
-          let [otherid, othersock] = getOtherKeyVal(sockets_by_id, myid);
+          let [otherid, othersock] = getOtherKeyVal(bridge_sockets_by_id, myid);
           if (othersock) {
             log.debug(myid, `--->${otherid}`, args[0]);
             othersock.emit(...args);
@@ -284,17 +284,17 @@ function BridgeServer({
           });
           
           // cleanup
-          delete nsp_by_bridgenum[bridgenum];
-          delete sockets_by_bridgenum[bridgenum];
+          delete global_nsp_by_bridgenum[bridgenum];
+          delete global_sockets_by_bridgenum[bridgenum];
           
-          let num_active_bridges = Object.keys(sockets_by_bridgenum).length;
+          let num_active_bridges = Object.keys(global_sockets_by_bridgenum).length;
           
           log.debug(myid, `Now ${num_active_bridges} active bridges remaining.`);
         }); // on disconnect
         
         
         
-        let [otherid, othersock] = getOtherKeyVal(sockets_by_id, myid);
+        let [otherid, othersock] = getOtherKeyVal(bridge_sockets_by_id, myid);
         if (othersock) {
           mysock.emit('peer_connected');
           othersock.emit('peer_connected');

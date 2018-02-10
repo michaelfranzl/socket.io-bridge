@@ -263,6 +263,7 @@ let test5 = () => {
     }
 
     let num_connects = 0;
+    
     client.make({
       uid: 'clientB',
       log: mylog_client,
