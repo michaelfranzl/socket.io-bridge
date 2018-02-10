@@ -239,43 +239,52 @@ let test4 = () => {
 };
 
 
-
 // ------------------------------------------
-// Duplicate IDs are OK when not used at the same time
+// clientA connects to clientB, then clientA disconnects and reconnects to clientB.
 let test5 = () => {
   return new Promise((resolve, reject) => {
 
-    function makeTwoClients(cb) {
+    function connectToClientB(cb) {
       client.make({
-        uid: `doc`,
+        uid: `clientA${Date.now()}`, // must be unique!
+        peer_uid: 'clientB',
         log: mylog_client,
         onresult: (socket, err) => {
           if (err) throw err;
-          socket.disconnect();
-          setTimeout(() => {
-            if (cb) {
-              cb();
-            } else {
-              console.log("test5 passed".magenta);
-              resolve();
-            }
-          }, 1000);
-        },
-      });
-      
-      client.make({
-        uid: `marty`,
-        peer_uid: 'doc',
-        log: mylog_client,
-        onresult: (socket, err) => {
-          if (err) throw err;
+          socket.on('hello', () => {
+            socket.disconnect(); // this disconnecs the other socket too.
+            setTimeout(() => {
+              // reconnect
+              if (cb) cb();
+            }, 200);
+          });
         },
       });
     }
+
+    let num_connects = 0;
+    client.make({
+      uid: 'clientB',
+      log: mylog_client,
+      onresult: (socket, err) => {
+        if (err) throw err;
+
+        if (num_connects++ == 1) {
+          // clientA connects a second time
+          console.log('test5 passed'.magenta);
+          resolve();
+        }
+        setTimeout(() => {
+          socket.emit('hello');
+        }, 100);
+      },
+    });
     
-    makeTwoClients(makeTwoClients); // twice
+    connectToClientB(connectToClientB); // twice
   });
 };
+
+
 
 
 // ------------------------------------------
@@ -294,7 +303,6 @@ Promise.all([test1(), test2(), test3(), test4(), test5()]) // do all tests in pa
 .then(() => {
   return new Promise((resolve, reject) => {
     bridge_mastersocket.on('disconnect', () => {
-      console.log('disconnected');
       resolve();
     });
     bridge_mastersocket.disconnect();
@@ -308,5 +316,5 @@ Promise.all([test1(), test2(), test3(), test4(), test5()]) // do all tests in pa
 .catch((str) => {
   clearTimeout(timeout);
   console.log('test failed', str);
-  process.exit(1);
+  setTimeout(() => process.exit(1), 100);
 });

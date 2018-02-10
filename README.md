@@ -92,7 +92,7 @@ Note:
 * There are no other event listeners except those which are specified by both clients (server passes through everything and has no reserved event names).
 * If one client disconnects the socket, the other socket will be disconnected too.
 * Only one client needs to specify the argument `peer_uid`, the other peer does not.
-* The `uid` argument must be globally unique. This is a hard requirement. If not, the `err` argument in `onresult` is set and `socket` will be `null`. However, after a client has disconnected, its name can be re-used.
+* The `uid` argument must be globally unique for a running server session. This is a hard requirement. If not, the `err` argument in `onresult` is set and `socket` will be `null`.
 * Both clients can connect at different times (earlier or later than the other). Only as soon as the requested client, identified by `peer_id`, connects, the `onresult()` callback delivers the peer sockets on both clients.
 * An arbitrary number of client-client bridges can be created in this way by calling `make()` as many times as needed.
 * This method only supports client-client connections (no broadcasts or multicasts).
