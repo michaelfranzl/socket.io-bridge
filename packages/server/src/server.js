@@ -163,7 +163,7 @@ function BridgeServer({
       }); // on login
       
       socket.on('disconnect', () => {
-        log.debug(myid, 'master socket disconnected');
+        log.debug('master socket disconnected');
       });
       
       socket.on('request_bridge', (uuid, myid, otherid) => {
