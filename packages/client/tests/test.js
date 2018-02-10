@@ -292,9 +292,18 @@ var timeout = setTimeout(() => {
 // .then(() => test4())
 Promise.all([test1(), test2(), test3(), test4(), test5()]) // do all tests in parallel
 .then(() => {
+  return new Promise((resolve, reject) => {
+    bridge_mastersocket.on('disconnect', () => {
+      console.log('disconnected');
+      resolve();
+    });
+    bridge_mastersocket.disconnect();
+  }); //return 
+})
+.then(() => {
   clearTimeout(timeout);
   console.log('All tests passed');
-  process.exit(0);
+  setTimeout(() => process.exit(0), 100);
 })
 .catch((str) => {
   clearTimeout(timeout);
