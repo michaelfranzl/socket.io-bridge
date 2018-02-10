@@ -139,7 +139,7 @@ BridgeClient.prototype.make = function({
         var testtext = 'testtext';
         bridgesocket.emit('echo', testtext, function (echoed) {
           if (testtext == echoed) {
-            log.info(uid, 'echo works. bridge successfully established');
+            log.debug(uid, 'echo works. bridge successfully established');
             onresult(bridgesocket, null);
           }
         });
