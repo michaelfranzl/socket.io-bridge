@@ -39,13 +39,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 function BridgeClient({
   IO,
   socket,
+  uri,
   io_opts = {},
 }) {
   this.IO = IO;
   this.socket = socket;
   this.io_opts = io_opts;
   
-  this.uri = this.socket.io.uri;
+  this.uri = uri;
   this.clients = {};
   this.num_connections = 0;
   
@@ -140,6 +141,7 @@ BridgeClient.prototype.make = function({
         bridgesocket.emit('echo', testtext, function (echoed) {
           if (testtext == echoed) {
             log.debug(uid, 'echo works. bridge successfully established');
+            bridgesocket.off('internal_error');
             onresult(bridgesocket, null);
           }
         });
@@ -156,6 +158,8 @@ BridgeClient.prototype.make = function({
       if (peer_uid) {
         log.debug(uid, 'requesting bridge to', peer_uid);
         this.socket.emit('request_bridge', uuid, uid, peer_uid);
+      } else {
+        log.info(`Logged in with ID '${uid}'. Waiting for requests to connect to bridges...`);
       }
     },
   };

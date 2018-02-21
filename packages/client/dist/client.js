@@ -42,6 +42,7 @@ function BridgeClient(_ref) {
 
   var IO = _ref.IO,
       socket = _ref.socket,
+      uri = _ref.uri,
       _ref$io_opts = _ref.io_opts,
       io_opts = _ref$io_opts === undefined ? {} : _ref$io_opts;
 
@@ -49,7 +50,7 @@ function BridgeClient(_ref) {
   this.socket = socket;
   this.io_opts = io_opts;
 
-  this.uri = this.socket.io.uri;
+  this.uri = uri;
   this.clients = {};
   this.num_connections = 0;
 
@@ -138,6 +139,7 @@ BridgeClient.prototype.make = function (_ref2) {
         bridgesocket.emit('echo', testtext, function (echoed) {
           if (testtext == echoed) {
             log.debug(uid, 'echo works. bridge successfully established');
+            bridgesocket.off('internal_error');
             onresult(bridgesocket, null);
           }
         });
@@ -154,6 +156,8 @@ BridgeClient.prototype.make = function (_ref2) {
       if (peer_uid) {
         log.debug(uid, 'requesting bridge to', peer_uid);
         _this2.socket.emit('request_bridge', uuid, uid, peer_uid);
+      } else {
+        log.info('Logged in with ID \'' + uid + '\'. Waiting for requests to connect to bridges...');
       }
     }
   };
