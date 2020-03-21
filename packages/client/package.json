@@ -2,9 +2,9 @@
   "name": "socket.io-bridge-client",
   "version": "0.1.5",
   "description": "Real-time bidirectional event-based communication between two socket.io clients",
-  "main": "dist/client.js",
+  "main": "src/client.js",
   "scripts": {
-    "test": "node ./tests/test.js"
+    "test": "./node_modules/.bin/mocha"
   },
   "repository": {
     "type": "git",
@@ -19,52 +19,22 @@
   "author": "Michael Karl Franzl",
   "license": "MIT",
   "devDependencies": {
+    "chai": "^4.2.0",
+    "chai-as-promised": "^7.1.1",
     "colors": "^1.1.2",
-    "gulp": "^3.9.1",
+    "eslint": "^6.8.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-plugin-import": "^2.20.1",
+    "eslint-plugin-mocha": "^6.2.2",
     "jsdoc-to-markdown": "^4.0.1",
-    "jspm": "^0.17.0-beta.41",
+    "loglevel-colored-level-prefix": "^1.0.0",
+    "mocha": "^7.1.1",
     "showdown": "^1.8.6",
-    "socket.io": "^2.0.4",
-    "socket.io-bridge-server": "^0.1.4",
-    "socket.io-client": "^2.0.4"
+    "socket.io": "^2.3.0"
   },
-  "publishConfig": {
-    "access": "public"
+  "dependencies": {
+    "socket.io-client": "^2.3.0",
+    "uuid-random": "^1.3.0"
   },
-  "jspm": {
-    "name": "socket.io-bridge-client",
-    "main": "src/client.js",
-    "dependencies": {},
-    "devDependencies": {
-      "plugin-babel": "npm:systemjs-plugin-babel@^0.0.25"
-    },
-    "peerDependencies": {
-      "assert": "npm:jspm-nodelibs-assert@^0.2.0",
-      "buffer": "npm:jspm-nodelibs-buffer@^0.2.0",
-      "constants": "npm:jspm-nodelibs-constants@^0.2.0",
-      "crypto": "npm:jspm-nodelibs-crypto@^0.2.0",
-      "events": "npm:jspm-nodelibs-events@^0.2.0",
-      "fs": "npm:jspm-nodelibs-fs@^0.2.0",
-      "os": "npm:jspm-nodelibs-os@^0.2.0",
-      "path": "npm:jspm-nodelibs-path@^0.2.0",
-      "process": "npm:jspm-nodelibs-process@^0.2.0",
-      "stream": "npm:jspm-nodelibs-stream@^0.2.0",
-      "string_decoder": "npm:jspm-nodelibs-string_decoder@^0.2.0",
-      "util": "npm:jspm-nodelibs-util@^0.2.0",
-      "vm": "npm:jspm-nodelibs-vm@^0.2.0"
-    },
-    "overrides": {
-      "npm:inherits@2.0.3": {
-        "ignore": [
-          "test.js"
-        ]
-      },
-      "npm:pbkdf2@3.0.14": {
-        "main": "browser.js"
-      },
-      "npm:safe-buffer@5.1.1": {
-        "browser": "index.js"
-      }
-    }
-  }
+  "type": "module"
 }

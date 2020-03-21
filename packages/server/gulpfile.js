@@ -1,5 +1,3 @@
-/*jshint esversion: 6 */
-
 const gulp = require('gulp');
 const fs = require('fs');
 const showdown = require('showdown');
@@ -13,11 +11,11 @@ gulp.task('readme', function() {
     template: fs.readFileSync('README.hbs').toString(),
   });
   fs.writeFileSync('README.md', output);
-  
+
   var converter = new showdown.Converter({
     tables: true,
   });
-  
+
   // for debugging only
   //fs.writeFileSync('README.html', converter.makeHtml(output));
 });

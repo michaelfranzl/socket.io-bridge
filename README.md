@@ -1,160 +1,196 @@
 # socket.io-bridge
 
-Real-time bidirectional event-based communication between two [socket.io](https://github.com/socketio) clients (rather than server-client).
+Real-time, bidirectional, event-based communication between two [Socket.IO](https://github.com/socketio) clients.
 
-Normally, to route an event from one client to the other, one has to do:
+There are no dependencies on message queue or pub/sub servers. The Node.js server creates client-client 'bridges' (private namespaces used by two clients) using just Socket.IO.
+
+![Test](https://github.com/michaelfranzl/socket.io-bridge/workflows/Test/badge.svg)
+
+## Features
+
+* Client library works with Node.js and browsers
+* Works through firewalls and with NAT (because clients connect to the server)
+* Addressing using self-assigned string IDs (locally unique, communicated via some other channel)
+* Real-time peer connection and disconnection notification
+* Private namespaces ('bridges') have random names
+* The server is transparent to event names; clients can emit any signal (using `.emit` and `.on`) without the need to change the server
+* Promise and/or callback-based peer connection notification
+* Connection multiplexing over just one TCP connection (this is a Socket.IO feature)
+
+## Example
+
+See a working demo at [packages/client/demo](packages/client/demo).
+
+Without socket.io-bridge, with only plain Socket.IO, to route an event from one client to another client, one has to do:
 
 Client 1:
 
-````javascript
-socket.emit('event1');
-````
+```javascript
+socket.emit('event');
+```
 
 Server:
 
-````javascript
-clientsocket1.on('event1', () => {
-  clientsocket2.emit('event1');
-});
-````
+```javascript
+client1.on('event', () => client2.emit('event'));
+```
 
 Client 2:
 
-````javascript
-socket.on('event1', () => {
-  console.log('client 1 called event1')
-});
-````
+```javascript
+socket.on('event', () => console.log('event'));
+```
 
-Note that the server has to have hard-coded event names.
+Disadvantages in this approach:
 
+* Three separate implementations are tighly coupled (server, client1, client2)
+* client1 does not know if client2 is currently connected to the server
+* client1 does not know when client2 disconnects
+* client1 does not know *who* client2 is
 
-With socket.io-bridge, the same can be accomplished like this:
+These issues can be solved using the present library, and are illustrated below.
 
+On the backend (assuming a server at `http://localhost:3000`), adding the client-client briging behavior to an already existing Socket.IO server just requires one additional line:
 
-On the server (Node.js):
+```javascript
+import http from 'http';
+import SocketIoServer from 'socket.io';
+import makeBridgeServer from 'socket.io-bridge-server';
 
-````javascript
-require('socket.io-bridge-server')({
-  namespace: io.of('/bridge'),
-});
+const server = http.createServer().listen(3000);
+const socketIoServer = SocketIoServer(server);
+const namespace = socketIoServer.of('/bridge');
 
-````
+makeBridgeServer({ namespace }); // <-- that's it
+```
 
+On client "Alice" (running in a browser or in Node.js):
 
-On client 1 (browser or Node.js):
+```javascript
+import SocketIoClient from 'socket.io-client';
 
+// setup
+const socket = SocketIoClient('http://localhost:3000/bridge');
+const bridgeClient = new SocketIoBridgeClient({ socket });
 
-````javascript
-bridge.make({
-  uid: 'client1',      // our unique ID
-  peer_uid: 'client2', // the peer's unique ID
-  onresult: (socket, err) => {
-    if (err) throw err;
-    
-    socket.emit('event1');
-    
-    socket.on('event2', (txt, cb) => {
-      cb(txt); // socket.io callbacks work too
+// usage
+bridgeClient
+  .make({ id: 'Alice', peerId: 'Bob' }) // We are "Alice", and we want to talk to "Bob".
+  .then((peer) => { // Bob is now connected. `peer` is a regular Socket.IO client socket.
+    // Application-specific implementation.
+    peer.emit('hello');
+    peer.on('concatenate two words', (txt1, txt2) => callback(`${txt1} ${txt2}!`));
+  });
+```
+
+On client "Bob" (running in a browser or in Node.js):
+
+```javascript
+import SocketIoClient from 'socket.io-client';
+
+// setup
+const socket = SocketIoClient('http://localhost:3000/bridge');
+const bridgeClient = new SocketIoBridgeClient({ socket });
+
+// usage
+bridgeClient.make({
+  // We are "Bob". We don't want to talk to anybody specific, but others may want to talk to us.
+  id: 'Bob',
+  onconnection: (peer) => {
+    console.log('someone connected to us');
+    socket.on('hello', () => { console.log('someone said hello') });
+
+    socket.emit('concatenate two words', 'Hello', 'world', (answer) => {
+      console.log(answer); // This prints "Hello world!" if the peer implements this event.
     });
-    
-    // etc.
   },
 });
-````
+```
 
-On client c2 (browser or Node.js):
+Advantages of this approach:
 
-
-````javascript
-bridge.make({
-  uid: 'client2',  // our unique ID
-  onresult: (socket, err) => {
-    if (err) throw err;
-  
-    socket.on('event1', () => {
-      // client1 called event1
-    });
-    
-    socket.emit('event2', 'hello', (txt) => {
-      // client1 confirmed event2 (this implements an echo)
-    });
-    
-    // etc.
-  },
-});
-````
-
-Note:
-
-* The server doesn't need to hard-code event names.
-* socket.io callbacks (functions as payload) work.
-* There are no other event listeners except those which are specified by both clients (server passes through everything and has no reserved event names).
-* If one client disconnects the socket, the other socket will be disconnected too.
-* Only one client needs to specify the argument `peer_uid`, the other peer does not.
-* Both clients can connect at different times (earlier or later than the other). Only as soon as the requested client, identified by `peer_id`, connects, the `onresult()` callback delivers the peer sockets on both clients.
-* An arbitrary number of client-client bridges can be created in this way by calling `make()` as many times as needed.
-* This method only supports client-client connections (no broadcasts or multicasts).
-
-
-The [test file](packages/client/tests/test.js) provides working examples. Run the tests with `npm test` in the directory `packages/client`.
+* Only the client implementations are coupled, the server is decoupled.
+* There are no event listeners on all the used sockets except those set by the clients themselves.
+* Socket.IO callbacks work (i.e. functions as payload).
+* If one client disconnects, the other socket will be disconnected too.
+* Only one client needs to provide the argument `peerId`, the other peer does not. The peer who is
+    not providing `peerId` expects that other peers connect to it (it is loosely equivalent to a
+    'server').
+* The order in which the clients connect to the server does not matter.
+* Two mechanisms are provided for when a peer connects, which can be used interchangeably: a
+    Promise, and a callback function `onconnection`. Note that a Promise can resolve only once. For
+    multiple connections to one peer, you can only use the callback on this peer.
+* For one connection to the server, an arbitrary number of client-client connections can be
+    established (by calling `make` repeatedly).
+* Because Socket.IO connections are multiplexed over just one TCP connection, even multiple connections between two endpoints established in such a way are multiplexed too.
 
 
 ## Connection establishment protocol
 
-This protocol is implemented by the packages `socket.io-bridge-server` and `socket.io-bridge-client`. The user does not need to know about it, it's working behind the scenes.
+This custom protocol is implemented by the packages `socket.io-bridge-server` and `socket.io-bridge-client`. The user does not need to know about it, it's working behind the scenes and ends when the `onconnection` callback is called, or when the connection promise resolves.
 
-One master namespace on the server (here called `/bridge`) is used to negotiate the creation of new private namespaces (in below example called `bname`).
+In the example below, client "c1" wants to connect to client "c2".
 
-````
+One namespace on the server (under the path `/bridge`) is used to negotiate the creation of new private sub-namespaces (in the example below called `nname`)
+
+```
 CLIENT c1                     SERVER                      CLIENT c2
                             nsp:/bridge
----------connection----------->  | 
------------login-------------->  | 
- <--------logged_in------------- | 
+---------connection----------->  |
+-----------login-------------->  |
+ <--------logged_in------------- |
 -----request_bridge(c2)------->  |
                                  |
                                  |  <--------connection-------------
                                  |  <----------login----------------
                                  | ----------logged_in------------>
-<--- connect_to_bridge(bname)--- | -----connect_to_bridge(bname)-->
+<--- connect_to_bridge(nname)--- | -----connect_to_bridge(nname)-->
 
-````
-... after which the clients connect to this new private namespace:
+```
 
-````
+Both clients will receive the `connect_to_bridge` event at the same time (disregarding network delays) and will connect to the new namespace, the name of which is known only to the clients:
+
+
+```
 
 CLIENT c1                     SERVER                      CLIENT c2
-                         nsp:/bridge/bname
----------connection----------->  | 
+                         nsp:/bridge/nname
+---------connection----------->  |
 -----------start-------------->  |
                                  |
                                  |  <--------connection------------
                                  |  <----------start---------------
  <--------peer_connected-------- | ---------peer_connected------->
+```
+
+At this point, the server removes all event listeners from the sockets, and the clients perform an echo test to test connectivity without the active participation of the server:
+
+```
+CLIENT c1                     SERVER                      CLIENT c2
+                         nsp:/bridge/nname
                                  |
 --------------echo------------>  | --------------echo------------>
  <--------------echo------------ |  <-------------echo------------
                                  |
  <-------------echo------------- |  <--------------echo-----------
 --------------echo------------>  | --------------echo------------->
-````
-After an echo test succeeds in both directions, all server-side and client-side event listeners are removed, and what remains is a transparent 'pipe' between the two clients, where the server forwards everything without discrimination:
+```
 
-````
- <---------------*---------------|-----------------*------------->
-````
-
-From socket.io-client documentation: *"By default, a single connection is used when connecting to different namespaces (to minimize resources)".* This means that all newly created namespaces are multiplexed over just one TCP connection.
+After this succeeds, the clients remove the `echo` event listener from the sockets, which now are a 'transparent pipe' to the other peer, and pass them to the user code using a resolving promise and the `onconnection` callback.
 
 
-# License
+# Development and testing
 
-socket.io-bridge - Real-time bidirectional event-based communication between two socket.io clients.
+The [test file](packages/client/tests/test.js) is also a documentation on various use cases.
 
-Copyright 2018 Michael Karl Franzl
+Run the tests:
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+```sh
+npm test
+```
 
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+To use the debugger during testing, run:
+
+```sh
+npm test -- --inspect
+```

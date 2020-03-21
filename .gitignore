@@ -2,5 +2,5 @@
 *.log
 *swp
 node_modules
-jspm_packages
-README.html
+doc
+*.html

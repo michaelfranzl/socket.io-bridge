@@ -1,28 +1,16 @@
 # socket.io-bridge-server
 
-For more information, see README.md of the project's github page.
+Server implementation for socket.io-bridge.
 
-
-Import in Node.js:
-
-    const BridgeServer = require('socket.io-bridge-server');
-    
-
-Generate `README.md` with API documentation parsed from jsdoc sources:
-
-    gulp readme
-    
-Testing is provided in the socket.io-bridge-client package
-
+Please find the project documentation at https://github.com/michaelfranzl/socket.io-bridge .
 
 # API Reference
 
 ## Functions
 
 <dl>
-<dt><a href="#BridgeServer">BridgeServer(opts)</a></dt>
-<dd><p>Run a socket.io-bridge server.</p>
-<p>Do not instantiate.</p>
+<dt><a href="#makeBridgeServer">makeBridgeServer(opts)</a></dt>
+<dd><p>Adds client-client bridging capability to a Socket.IO namespace.</p>
 </dd>
 </dl>
 
@@ -33,20 +21,18 @@ Testing is provided in the socket.io-bridge-client package
 <dd></dd>
 </dl>
 
-<a name="BridgeServer"></a>
+<a name="makeBridgeServer"></a>
 
-## BridgeServer(opts)
-Run a socket.io-bridge server.
-
-Do not instantiate.
+## makeBridgeServer(opts)
+Adds client-client bridging capability to a Socket.IO namespace.
 
 **Kind**: global function  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | opts | <code>Object</code> |  |
-| opts.namespace | [<code>Namespace</code>](#Namespace) | For example: `require('socket.io')(3000).of('/bridge');` |
-| [opts.log] | <code>Object</code> | The logger to use. Must support `info()`, `warn()`, `debug()` and `error()` methods. |
+| opts.namespace | [<code>Namespace</code>](#Namespace) |  |
+| [opts.logger] | <code>Object</code> | No logging by default |
 
 <a name="Namespace"></a>
 

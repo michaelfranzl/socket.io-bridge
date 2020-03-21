@@ -1,42 +1,8 @@
 # socket.io-bridge-client
 
-For more information, see README.md of the project's github page.
+Client implementation for socket.io-bridge.
 
-
-ES6 import:
-
-    import BridgeClient from 'socket.io-bridge-client';
-
-
-
-Until ES6 imports are widely supported...
-
-... import in Node.js:
-
-    const BridgeClient = require('socket.io-bridge-client/dist/client.js').default;
-
-... import in browsers:
-
-    <script src="socket.io-bridge-client/dist/client.js"></script>
-    <script>
-      window.addEventListener("load", function() {
-        var BridgeClient = window.BridgeClient.default;
-      });
-    </script>
-
-Run tests:
-
-    npm test
-
-Regenerate distribution files:
-
-    npm install
-    jspm install
-    gulp build
-    
-Generate `README.md` with API documentation parsed from jsdoc sources:
-
-    gulp readme
+Please find the project documentation at https://github.com/michaelfranzl/socket.io-bridge .
 
 # API Reference
 
