@@ -1,3 +1,12 @@
 .npmignore
 makedoc
 .github
+doc
+demo
+test
+scripts
+demo
+jspm*
+.*
+jsdoc-conf.json
+*.html
