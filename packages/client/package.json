@@ -28,7 +28,7 @@
     "eslint-plugin-mocha": "^6.2.2",
     "jsdoc-to-markdown": "^7.0.1",
     "loglevel-colored-level-prefix": "^1.0.0",
-    "mocha": "^7.1.1",
+    "mocha": "^10.2.0",
     "showdown": "^1.8.6",
     "socket.io": "^2.3.0"
   },
